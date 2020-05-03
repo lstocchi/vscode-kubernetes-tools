@@ -135,6 +135,11 @@ function createAutoVersioned(host: Host, fs: FS, shell: Shell, installDependenci
     return new KubectlImpl(host, fs, shell, installDependenciesCallback, pathfinder, false);
 }
 
+export function createOnBinary(host: Host, fs: FS, shell: Shell, bin: string): Kubectl {
+    const pathfinder = async () => bin;
+    return new KubectlImpl(host, fs, shell, () => {}, pathfinder, false);
+}
+
 export enum CheckPresentMessageMode {
     Command,
     Activation,
@@ -220,10 +225,7 @@ async function checkPossibleIncompatibility(context: Context): Promise<void> {
 }
 
 async function invokeAsyncWithProgress(context: Context, command: string, progressMessage: string): Promise<ShellResult | undefined> {
-    return context.host.withProgress(async (p) => {
-        p.report({ message: progressMessage });
-        return await invokeAsync(context, command);
-    });
+    return context.host.longRunning(progressMessage, () => invokeAsync(context, command));
 }
 
 async function spawnAsChild(context: Context, command: string[]): Promise<ChildProcess | undefined> {

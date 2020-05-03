@@ -6,7 +6,7 @@ import { ActionResult, fromShellJson, fromShellExitCodeAndStandardError, fromShe
 import { Errorable, failed } from '../../../errorable';
 import * as compareVersions from 'compare-versions';
 import { sleep } from '../../../sleep';
-import { getActiveKubeconfig } from '../../config/config';
+import { getKubeconfigPath } from '../../kubectl/kubeconfig';
 import { Dictionary } from '../../../utils/dictionary';
 
 export interface Context {
@@ -155,8 +155,7 @@ async function listLocations(context: Context): Promise<Errorable<Locations>> {
     const sr = await context.shell.exec(`az account list-locations --query ${query} -ojson`);
 
     return fromShellJson<Locations>(sr, "Unable to list Azure regions", (response) => {
-        /* tslint:disable-next-line:prefer-const */
-        let locations = Dictionary.of<string>();
+        const locations = Dictionary.of<string>();
         for (const r of response) {
             locations[r.name] = r.displayName;
         }
@@ -351,8 +350,9 @@ async function downloadKubectlCli(context: Context, clusterType: string): Promis
 }
 
 async function getCredentials(context: Context, clusterType: string, clusterName: string, clusterGroup: string, maxAttempts: number): Promise<any> {
-    const kubeconfig = getActiveKubeconfig();
-    const kubeconfigFileOption = kubeconfig ? `-f "${kubeconfig}"` : '';
+    const kubeconfigPath = getKubeconfigPath();
+    const kubeconfigFilePath = kubeconfigPath.pathType === "host" ? kubeconfigPath.hostPath : kubeconfigPath.wslPath;
+    const kubeconfigFileOption = kubeconfigFilePath ? `-f "${kubeconfigFilePath}"` : '';
     let attempts = 0;
     while (true) {
         attempts++;

@@ -85,6 +85,7 @@ import { getBuildCommand, getPushCommand } from './image/imageUtils';
 import { getImageBuildTool } from './components/config/config';
 import { ClusterExplorerNode, ClusterExplorerConfigurationValueNode, ClusterExplorerResourceNode, ClusterExplorerResourceFolderNode } from './components/clusterexplorer/node';
 import { create as activeContextTrackerCreate } from './components/contextmanager/active-context-tracker';
+import { WatchManager } from './components/kubectl/watch';
 
 let explainActive = false;
 let swaggerSpecPromise: Promise<explainer.SwaggerModel | undefined> | null = null;
@@ -197,6 +198,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<APIBro
         registerCommand('extension.vsKubernetesDeleteContext', deleteContextKubernetes),
         registerCommand('extension.vsKubernetesUseNamespace', (explorerNode: ClusterExplorerNode) => { useNamespaceKubernetes(kubectl, explorerNode); } ),
         registerCommand('extension.vsKubernetesDashboard', () => { dashboardKubernetes(kubectl); }),
+        registerCommand('extension.vsKubernetesAddWatch', (explorerNode: ClusterExplorerNode) => { addWatch(treeProvider, explorerNode); }),
+        registerCommand('extension.vsKubernetesDeleteWatch', (explorerNode: ClusterExplorerNode) => { deleteWatch(treeProvider, explorerNode); }),
         registerCommand('extension.vsMinikubeStop', () => minikube.stop()),
         registerCommand('extension.vsMinikubeStart', () => minikube.start({} as MinikubeOptions)),
         registerCommand('extension.vsMinikubeStatus', async () => {
@@ -293,7 +296,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<APIBro
         portForwardStatusBarItem,
 
         // Telemetry
-        registerTelemetry(context)
+        registerTelemetry(context),
+
+        treeProvider.initialize()
     ];
 
     telemetry.invalidateClusterType(undefined, kubectl);
@@ -788,6 +793,18 @@ function getKubernetes(explorerNode?: any) {
     }
 }
 
+function addWatch(tree: explorer.KubernetesExplorer, explorerNode?: ClusterExplorerNode) {
+    if (explorerNode) {
+        tree.watch(explorerNode);
+    }
+}
+
+function deleteWatch(tree: explorer.KubernetesExplorer, explorerNode?: ClusterExplorerNode) {
+    if (explorerNode) {
+        tree.stopWatching(explorerNode);
+    }
+}
+
 function findVersion() {
     return {
         then: findVersionInternal
@@ -870,11 +887,11 @@ export interface FindPodsResult {
 
 function findNameAndImage() {
     return {
-        then: _findNameAndImageInternal
+        then: findNameAndImageInternal
     };
 }
 
-function _findNameAndImageInternal(fn: (name: string, image: string) => void) {
+function findNameAndImageInternal(fn: (name: string, image: string) => void) {
     if (vscode.workspace.rootPath === undefined) {
         vscode.window.showErrorMessage('This command requires an open folder.');
         return;
@@ -1257,7 +1274,7 @@ export interface PodSummary {
     readonly name: string;
     readonly namespace: string | undefined;
     readonly spec?: {
-        containers?: Container[]
+        containers?: Container[];
     };
 }
 
@@ -1423,6 +1440,20 @@ async function deleteKubernetes(delMode: KubernetesDeleteMode, explorerNode?: Cl
         if (!answer || answer.isCloseAffordance) {
             return;
         }
+
+        if (explorerNode.kind.manifestKind === 'Namespace') {
+            const ns = explorerNode.name;
+            const confirmed = await confirmDangerousNamespaceDeletion(ns);
+            if (!confirmed) {
+                return;
+            }
+            const currentNS = await kubectlUtils.currentNamespace(kubectl);
+            if (ns === currentNS) {
+                await host.longRunning(`Switching out of namespace '${ns}'`, () =>
+                    kubectlUtils.switchNamespace(kubectl, "default")
+                );
+            }
+        }
         const nsarg = explorerNode.namespace ? `--namespace ${explorerNode.namespace}` : '';
         const shellResult = await kubectl.invokeAsyncWithProgress(`delete ${explorerNode.kindName} ${nsarg} ${delModeArg}`, `Deleting ${explorerNode.kindName}...`);
         await reportDeleteResult(explorerNode.kindName, shellResult);
@@ -1438,6 +1469,42 @@ async function deleteKubernetes(delMode: KubernetesDeleteMode, explorerNode?: Cl
             }
         });
     }
+}
+
+async function confirmDangerousNamespaceDeletion(ns: string): Promise<boolean> {
+    if (ns === 'default') {
+        const confirmed = await warnConfirm("This will delete the default namespace, which is inadvisable.", "I'm aware of the risks: delete anyway", "Don't delete");
+        if (!confirmed) {
+            return false;
+        }
+    }
+
+    const resources = await host.longRunning(`Checking contents of namespace '${ns}'`, () =>
+        kubectlUtils.namespaceResources(kubectl, ns)
+    );
+    if (succeeded(resources)) {
+        if (resources.result.length > 0) {
+            const confirmed = await warnConfirm(`This will also delete all ${resources.result.length} resources in namespace '${ns}'.`, "I don't need them: delete anyway", "Don't delete");
+            if (!confirmed) {
+                return false;
+            }
+        }
+    } else {
+        const confirmed = await warnConfirm(`Can't check if namespace '${ns}' contains resources: ${resources.error[0]}.`, "I'm sure it's safe: delete anyway", "Don't delete");
+        if (!confirmed) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+async function warnConfirm(message: string, acceptText: string, cancelText: string): Promise<boolean> {
+    const choice = await vscode.window.showWarningMessage(message, acceptText, cancelText);
+    if (!choice || choice === cancelText) {
+        return false;
+    }
+    return true;
 }
 
 enum KubernetesDeleteMode {
@@ -1865,6 +1932,7 @@ async function useContextKubernetes(explorerNode: ClusterExplorerNode) {
         telemetry.invalidateClusterType(targetContext);
         activeContextTracker.setActive(targetContext);
         refreshExplorer();
+        WatchManager.instance().clear();
     } else {
         vscode.window.showErrorMessage(`Failed to set '${targetContext}' as current cluster: ${shellResult ? shellResult.stderr : "Unable to run kubectl"}`);
     }
