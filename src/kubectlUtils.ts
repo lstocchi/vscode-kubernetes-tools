@@ -6,6 +6,7 @@ import { ObjectMeta, KubernetesCollection, DataResource, Namespace, Pod, Kuberne
 import { failed, Errorable } from "./errorable";
 import { ExecResult } from "./binutilplusplus";
 import { shellMessage } from "./shell";
+import { WatchManager } from "./components/kubectl/watch";
 
 export interface KubectlContext {
     readonly clusterName: string;
@@ -311,6 +312,7 @@ export async function switchNamespace(kubectl: Kubectl, namespace: string): Prom
         }
         return false;
     }
+    WatchManager.instance().clear();
     return true;
 }
 
