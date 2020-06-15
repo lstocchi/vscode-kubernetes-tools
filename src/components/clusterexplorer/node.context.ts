@@ -43,7 +43,7 @@ export class ContextNode extends ClusterExplorerNodeImpl implements ClusterExplo
             const namespace = this.kubectlContext.namespace ? this.kubectlContext.namespace : 'default';
             label = `${namespace}`;
         } 
-        const treeItem = new vscode.TreeItem(label, vscode.TreeItemCollapsibleState.Collapsed);
+        const treeItem = new vscode.TreeItem(label, vscode.TreeItemCollapsibleState.Expanded);
         treeItem.contextValue = this.clusterType;
         treeItem.iconPath = this.icon;
         return treeItem;

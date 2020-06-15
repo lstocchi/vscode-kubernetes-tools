@@ -1,16 +1,10 @@
 import * as vscode from 'vscode';
 import { Kubectl } from '../../kubectl';
 import { Host } from '../../host';
-import * as kuberesources from '../../kuberesources';
-import { failed } from '../../errorable';
 import * as kubectlUtils from '../../kubectlUtils';
-import { ClusterExplorerNode, ClusterExplorerResourceFolderNode, ClusterExplorerCustomNode, ClusterExplorerNodeImpl } from './node';
+import { ClusterExplorerNode, ClusterExplorerCustomNode, ClusterExplorerNodeImpl } from './node';
 import { MessageNode } from './node.message';
-import { FolderNode } from './node.folder';
-import { ResourceNode } from './node.resource';
-import { getLister } from './resourceui';
 import { NODE_TYPES } from './explorer';
-import { getResourceVersion } from '../../kubectlUtils';
 import * as providerResult from '../../utils/providerresult';
 
 export class ContextsFolderNode extends ClusterExplorerNodeImpl implements ClusterExplorerCustomNode {

@@ -10,10 +10,7 @@ import { affectsUs, getResourcesToBeWatched } from '../config/config';
 import { WatchManager } from '../kubectl/watch';
 import { ExplorerExtender, ExplorerUICustomizer } from './explorer.extension';
 import { ClusterExplorerNode, ClusterExplorerResourceNode } from './node';
-import { ContextNode, MiniKubeContextNode } from './node.context';
 import { ClusterNode } from './node.cluster';
-import { Message } from 'vscode-debugadapter/lib/messages';
-import { MessageNode } from './node.message';
 import { ContextsFolderNode } from './node.folder.contexts';
 
 // Each item in the explorer is modelled as a ClusterExplorerNode.  This
