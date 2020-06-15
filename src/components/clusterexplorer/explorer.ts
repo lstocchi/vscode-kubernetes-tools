@@ -11,6 +11,10 @@ import { WatchManager } from '../kubectl/watch';
 import { ExplorerExtender, ExplorerUICustomizer } from './explorer.extension';
 import { ClusterExplorerNode, ClusterExplorerResourceNode } from './node';
 import { ContextNode, MiniKubeContextNode } from './node.context';
+import { ClusterNode } from './node.cluster';
+import { Message } from 'vscode-debugadapter/lib/messages';
+import { MessageNode } from './node.message';
+import { ContextsFolderNode } from './node.folder.contexts';
 
 // Each item in the explorer is modelled as a ClusterExplorerNode.  This
 // is a discriminated union, using a nodeType field as its discriminator.
@@ -37,6 +41,7 @@ import { ContextNode, MiniKubeContextNode } from './node.context';
 export const KUBERNETES_EXPLORER_NODE_CATEGORY = 'kubernetes-explorer-node';
 
 export type KubernetesExplorerNodeTypeError = 'error';
+export type KubernetesExplorerNodeTypeCluster = 'cluster';
 export type KubernetesExplorerNodeTypeContext = 'context';
 export type KubernetesExplorerNodeTypeResourceFolder = 'folder.resource';
 export type KubernetesExplorerNodeTypeGroupingFolder = 'folder.grouping';
@@ -48,6 +53,7 @@ export type KubernetesExplorerNodeTypeExtension = 'extension';
 
 export type KubernetesExplorerNodeType =
     KubernetesExplorerNodeTypeError |
+    KubernetesExplorerNodeTypeCluster |
     KubernetesExplorerNodeTypeContext |
     KubernetesExplorerNodeTypeResourceFolder |
     KubernetesExplorerNodeTypeGroupingFolder |
@@ -59,6 +65,7 @@ export type KubernetesExplorerNodeType =
 
 export const NODE_TYPES = {
     error: 'error',
+    cluster: 'cluster',
     context: 'context',
     folder: {
         resource: 'folder.resource',
@@ -287,14 +294,14 @@ export class KubernetesExplorer implements vscode.TreeDataProvider<ClusterExplor
 
     private async getActiveContext(): Promise<ClusterExplorerNode[]> {
         const contexts = await kubectlUtils.getContexts(this.kubectl, { silent: false });  // TODO: turn it silent, cascade errors, and provide an error node
-        return contexts.filter((context) => context.active).map((context) => {
-            // TODO: this is slightly hacky...
-            if (context.contextName === 'minikube') {
-                return new MiniKubeContextNode(context.contextName, context);
-            }
-            
-            return new ContextNode(context.contextName, context);
-        });
+        const active = contexts.filter((context) => context.active)[0];
+        if (active) {
+            return [
+                new ClusterNode(active.clusterName, active),
+                new ContextsFolderNode(active),
+            ]
+        }
+        return [];
     }
 
     public async getInactiveContexts(): Promise<string[]> {
