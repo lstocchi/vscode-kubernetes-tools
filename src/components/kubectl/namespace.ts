@@ -7,6 +7,7 @@ import { Kubectl } from '../../kubectl';
 import { ClusterExplorerNode } from '../clusterexplorer/node';
 import { NODE_TYPES } from '../clusterexplorer/explorer';
 
+
 export async function useNamespaceKubernetes(kubectl: Kubectl, explorerNode: ClusterExplorerNode) {
     if (explorerNode && explorerNode.nodeType === NODE_TYPES.resource) {
         if (await kubectlUtils.switchNamespace(kubectl, explorerNode.name)) {
@@ -17,19 +18,22 @@ export async function useNamespaceKubernetes(kubectl: Kubectl, explorerNode: Clu
     }
 
     const currentNS = await kubectlUtils.currentNamespace(kubectl);
-    promptKindName(
+    const kindName = await promptKindName(
         [kuberesources.allKinds.namespace],
         '',  // unused because options specify prompt
         {
             prompt: 'What namespace do you want to use?',
             placeHolder: 'Enter the namespace to switch to or press enter to select from available list',
             filterNames: [currentNS]
-        },
-        (kindName) => switchToNamespace(kubectl, currentNS, kindName)
+        }
     );
+
+    if (kindName) {
+        switchToNamespace(kubectl, currentNS, kindName);
+    }
 }
 
-async function switchToNamespace (kubectl: Kubectl, currentNS: string, resource: string) {
+async function switchToNamespace(kubectl: Kubectl, currentNS: string, resource: string) {
     if (!resource) {
         return;
     }

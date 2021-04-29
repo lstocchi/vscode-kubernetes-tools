@@ -12,6 +12,7 @@ import * as kuberesources from '../../kuberesources';
 
 import * as kubernetes from '@kubernetes/client-node';
 import { ClusterExplorerResourceNode } from '../clusterexplorer/node';
+import { ExecResult } from '../../binutilplusplus';
 
 const PORT_FORWARD_TERMINAL = 'kubectl port-forward';
 const MAX_PORT_COUNT = 65535;
@@ -117,7 +118,7 @@ export async function portForwardKubernetes(kubectl: Kubectl, explorerNode?: any
  */
 function extractPodPorts(podJson: string): string | undefined {
     const pod = JSON.parse(podJson) as kubernetes.V1Pod;
-    const containers = pod.spec.containers;
+    const containers = pod.spec ? pod.spec.containers : [];
     const ports = Array.of<number>();
     containers.forEach((container) => {
         if (container.ports) {
@@ -142,13 +143,11 @@ async function promptForPort(kubectl?: Kubectl, podName?: string, namespace?: st
     if (podName && kubectl) {
         const ns = namespace || 'default';
         try {
-            const result = await kubectl.invokeAsync(`get pods ${podName} --namespace ${ns} -o json`);
-            if (result) {
-                if (result.code === 0) {
-                    defaultValue = extractPodPorts(result.stdout);
-                } else {
-                    console.log(`Error getting ports: ${result.stderr}`);
-                }
+            const result = await kubectl.invokeCommand(`get pods ${podName} --namespace ${ns} -o json`);
+            if (ExecResult.failed(result)) {
+                console.log(ExecResult.failureMessage(result, { whatFailed: 'Error getting ports' }));
+            } else {
+                defaultValue = extractPodPorts(result.stdout);
             }
         } catch (err) {
             console.log(err);
@@ -198,7 +197,6 @@ function validatePortMapping(portMapping: string): ValidationResult | undefined 
  * @returns An error to be displayed, or undefined
  */
 function validatePortPair(portPair: string): ValidationResult {
-    let localPort, targetPort;
     const splitMapping = portPair.split(':');
 
     // User provided only the target port
@@ -216,8 +214,8 @@ function validatePortPair(portPair: string): ValidationResult {
         };
     }
 
-    localPort = splitMapping[0];
-    targetPort = splitMapping[1];
+    const localPort = splitMapping[0];
+    const targetPort = splitMapping[1];
 
     if (
         Number(localPort) &&

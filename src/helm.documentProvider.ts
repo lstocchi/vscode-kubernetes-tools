@@ -4,10 +4,12 @@ import * as exec from './helm.exec';
 import * as YAML from 'yamljs';
 import * as fs from './wsl-fs';
 import { escape as htmlEscape } from 'lodash';
+import * as querystring from 'querystring';
 
 import * as helm from './helm';
 import * as logger from './logger';
 import { failed } from './errorable';
+import * as shell from './shell';
 
 interface HelmDocumentResult {
     readonly title: string;
@@ -77,19 +79,82 @@ export class HelmInspectDocumentProvider implements vscode.TextDocumentContentPr
                 });
             } else if (uri.authority === helm.INSPECT_REPO_AUTHORITY) {
                 const id = uri.path.substring(1);
-                const version = uri.query;
+                const query = querystring.parse(uri.query);
+                const version = query.version as string;
+                if (!shell.isSafe(id)) {
+                    vscode.window.showWarningMessage(`Unexpected characters in chart name ${id}. Use Helm CLI to inspect this chart.`);
+                    return;
+                }
+                if (version && !shell.isSafe(version)) {
+                    vscode.window.showWarningMessage(`Unexpected characters in chart version ${version}. Use Helm CLI to inspect this chart.`);
+                    return;
+                }
+
                 const versionArg = version ? `--version ${version}` : '';
                 exec.helmSyntaxVersion().then((sv) => {
                     const helm3Scope = (sv === exec.HelmSyntaxVersion.V2) ? '' : 'all';
                     if (uri.scheme === helm.INSPECT_CHART_SCHEME) {
                         exec.helmExec(`inspect ${helm3Scope} ${id} ${versionArg}`, printer);
                     } else if (uri.scheme === helm.INSPECT_VALUES_SCHEME) {
-                        exec.helmExec(`inspect values ${id} ${versionArg}`, printer);
+                        if (query.generateFile) {
+                            exec.helmExec(
+                                `inspect values ${id} ${versionArg}`,
+                                (code: number, out: string, err: string) => {
+                                    if (code === 0) {
+                                        resolve(out);
+                                        return;
+                                    }
+                                    console.log(
+                                        `failed to generate values.yaml: ${out} ${err}`
+                                    );
+                                    reject(err);
+                                }
+                            );
+                        } else {
+                            exec.helmExec(`inspect values ${id} ${versionArg}`, printer);
+                        }
                     }
                 });
             }
         });
 
+    }
+}
+
+export class HelmValuesDocumentProvider implements vscode.TextDocumentContentProvider {
+    public provideTextDocumentContent(uri: vscode.Uri, _token: vscode.CancellationToken): vscode.ProviderResult<string> {
+        return new Promise<string>((resolve, reject) => {
+            if (
+                uri.authority === helm.INSPECT_REPO_AUTHORITY &&
+                uri.scheme === helm.FETCH_VALUES_SCHEME
+            ) {
+                const query = querystring.parse(uri.query);
+                const id = query.chart as string;
+                const version = query.version ? `${query.version}` : "";
+                const versionArg = version ? `--version ${version}` : "";
+                if (!shell.isSafe(id)) {
+                    vscode.window.showWarningMessage(`Unexpected characters in chart name ${id}. Use Helm CLI to inspect this chart.`);
+                    return;
+                }
+                if (version && !shell.isSafe(version)) {
+                    vscode.window.showWarningMessage(`Unexpected characters in chart version ${version}. Use Helm CLI to inspect this chart.`);
+                    return;
+                }
+                exec.helmExec(
+                    `inspect values ${id} ${versionArg}`,
+                    (code: number, out: string, err: string) => {
+                        if (code === 0) {
+                            resolve(out);
+                            return;
+                        }
+                        console.log(
+                            `failed to inspect values: ${out} ${err}`
+                        );
+                        reject(err);
+                    }
+                );
+            }
+        });
     }
 }
 
@@ -115,44 +180,44 @@ export class HelmTemplatePreviewDocumentProvider implements vscode.TextDocumentC
             const tpl = vscode.window.activeTextEditor.document.fileName;
 
             exec.helmSyntaxVersion().then((v) => {
-                if (v === exec.HelmSyntaxVersion.V3) {
-                    resolve(render({ title: tpl, content: 'Individual template previews are not available in Helm 3', isErrorOutput: true }));
-                    return;
-                } else {
 
-                    // First, we need to get the top-most chart:
-                    exec.pickChartForFile(tpl, { warnIfNoCharts: true }, (chartPath) => {
-                        // We need the relative path for 'helm template'
-                        if (!fs.statSync(chartPath).isDirectory()) {
-                            chartPath = filepath.dirname(chartPath);
+                // First, we need to get the top-most chart:
+                exec.pickChartForFile(tpl, { warnIfNoCharts: true }, (chartPath) => {
+                    // We need the relative path for 'helm template'
+                    if (!fs.statSync(chartPath).isDirectory()) {
+                        chartPath = filepath.dirname(chartPath);
+                    }
+                    const reltpl = filepath.relative(chartPath, tpl);
+                    const notesarg = (tpl.toLowerCase().endsWith('notes.txt')) ? '--notes' : '';
+                    const displayResultAfterCommandExecution = (code: number, out: string, err: any) => {
+                        if (code !== 0) {
+                            const errorDoc = { title: "Chart Preview", subtitle: "Failed template call", content: err, isErrorOutput: true };
+                            resolve(render(errorDoc));
+                            return;
                         }
-                        const reltpl = filepath.relative(chartPath, tpl);
-                        const notesarg = (tpl.toLowerCase().endsWith('notes.txt')) ? '--notes' : '';
-                        exec.helmExec(`template "${chartPath}" --execute "${reltpl}" ${notesarg}`, (code, out, err) => {
-                            if (code !== 0) {
-                                const errorDoc = { title: "Chart Preview", subtitle: "Failed template call", content: err, isErrorOutput: true };
-                                resolve(render(errorDoc));
-                                return;
+
+                        if (filepath.basename(reltpl) !== "NOTES.txt") {
+                            try {
+                                YAML.parse(out);
+                            } catch (e) {
+                                // TODO: Figure out the best way to display this message, but have it go away when the
+                                // file parses correctly.
+                                vscode.window.showErrorMessage(`YAML failed to parse: ${ e.message }`);
                             }
+                        }
 
-                            if (filepath.basename(reltpl) !== "NOTES.txt") {
-                                try {
-                                    YAML.parse(out);
-                                } catch (e) {
-                                    // TODO: Figure out the best way to display this message, but have it go away when the
-                                    // file parses correctly.
-                                    vscode.window.showErrorMessage(`YAML failed to parse: ${ e.message }`);
-                                }
-                            }
+                        const previewDoc = out ?
+                            { title: reltpl, content: out, isErrorOutput: false } :
+                            { title: reltpl, content: 'Helm template produced no output', isErrorOutput: true };
+                        resolve(render(previewDoc));
+                    };
 
-                            const previewDoc = out ?
-                                { title: reltpl, content: out, isErrorOutput: false } :
-                                { title: reltpl, content: 'Helm template produced no output', isErrorOutput: true };
-                            resolve(render(previewDoc));
-                        });
-                    });
-
-                }
+                    if (v === exec.HelmSyntaxVersion.V3) {
+                        exec.helmExec(`template "${chartPath}" --show-only "${reltpl}" ${notesarg}`, displayResultAfterCommandExecution);
+                    } else {
+                        exec.helmExec(`template "${chartPath}" --execute "${reltpl}" ${notesarg}`, displayResultAfterCommandExecution);
+                    }
+                });
             });
         });
 

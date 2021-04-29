@@ -24,8 +24,8 @@ export function isPositionInKey(doc: vscode.TextDocument, pos: vscode.Position):
         return false;
     }
 
-    const { matchedNode } = yamlLocator.getMatchedElement(doc, pos);
-    return yamlUtil.isKey(matchedNode);
+    const element = yamlLocator.getMatchedElement(doc, pos);
+    return element ? yamlUtil.isKey(element.matchedNode) : false;
 }
 
 /**
@@ -79,7 +79,7 @@ export function makeRefOnKubernetes(id: string): { $ref: string } | undefined {
 }
 
 // extract id, apiVersion, kind from x-kubernetes-group-version-kind node in schema
-export function parseKubernetesGroupVersionKind(groupKindNodeItem: any): {id: string, apiVersion: string, kind: string} | undefined {
+export function parseKubernetesGroupVersionKind(groupKindNodeItem: any): {id: string; apiVersion: string; kind: string} | undefined {
     const group = getStringValue(groupKindNodeItem, 'group', StringComparison.OrdinalIgnoreCase);
     const version = getStringValue(groupKindNodeItem, 'version', StringComparison.OrdinalIgnoreCase);
     const apiVersion = group ? `${group}/${version}`: version;

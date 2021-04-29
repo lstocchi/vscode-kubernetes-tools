@@ -9,7 +9,7 @@ export interface KubernetesCollection<T extends KubernetesResource> {
 
 export interface ObjectMeta {
     readonly name: string;
-    readonly namespace?: string;
+    readonly namespace: string;
     readonly labels?: KeyValuePairs;
 }
 
@@ -24,9 +24,20 @@ export interface DataResource extends KubernetesResource {
 export interface Namespace extends KubernetesResource {
 }
 
+export interface LivenessProbeHttpGet {
+    readonly path: string;
+    readonly port: number;
+    readonly scheme: string;
+}
+
+export interface LivenessProbe {
+    readonly httpGet: LivenessProbeHttpGet;
+}
+
 export interface Container {
     readonly name: string;
     readonly image: string;
+    readonly livenessProbe?: LivenessProbe;
 }
 
 export interface Pod extends KubernetesResource {

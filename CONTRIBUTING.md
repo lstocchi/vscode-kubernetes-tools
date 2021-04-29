@@ -1,6 +1,6 @@
 # Contributing
 
-This project welcomes contributions and suggestions.  Most contributions require you to agree to a Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us the rights to use your contribution. For details, visit https://cla.microsoft.com.
+All members of the Open Source Community are welcome to contribute to this project. Contributions can be received through a variety of forms including source code contributions, reviews and issue creation. Most contributions require you to agree to a Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us the rights to use your contribution. For details, visit https://cla.microsoft.com.
 
 When you submit a pull request, a CLA-bot will automatically determine whether you need to provide a CLA and decorate the PR appropriately (e.g., label, comment). Simply follow the instructions provided by the bot. You will only need to do this once across all repos using our CLA.
 
@@ -8,12 +8,18 @@ This project has adopted the [Microsoft Open Source Code of Conduct](https://ope
 For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or
 contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
 
+## Contributors and Committers
+
+Individuals who are interested in directly affecting repository content may request the privilege in becoming a committer. After an individual has made number of high quality contributions that demonstrate that they understand how the project works, they can request commit access or be nominated by another member of the community. All requests for committer status will be reviewed and decided by existing committers transparently.
+
 ## Prerequisites
 
 When running from source (that is, debugging in the Extension Development Host), you must install dependencies first.  There are two sets of dependencies: node module dependencies and extension dependencies.
 
 1. **Install node modules:** In the integrated terminal, run `npm install`.
-2. **Install extension dependencies:** In the VS Code Extensions tab, search for RedHat YAML and install that extension.
+2. **Install extension dependencies:**
+   * In the VS Code Extensions tab, search for RedHat YAML and install that extension.
+   * In the VS Code Extensions tab, search for TypeScript + Webpack Problem Matcher and install that extension.
 
 (Note that end users do *not* need to do these steps.  VS Code extension packaging and installation takes care of them.  But running from source bypasses this process so we have to do them by hand.)
 

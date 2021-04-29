@@ -5,7 +5,8 @@ import * as path from "path";
 import * as portfinder from "portfinder";
 import { ChildProcess } from "child_process";
 
-import { IDebugProvider } from "./debugProvider";
+import { IDebugProvider, PortInfo } from "./debugProvider";
+import { ProcessInfo, getProcesses } from "./debugUtils";
 import * as providerRegistry from "./providerRegistry";
 
 import { kubeChannel } from "../kubeChannel";
@@ -20,6 +21,7 @@ import * as config from "../components/config/config";
 import { Dictionary } from "../utils/dictionary";
 import { definedOf } from "../utils/array";
 import * as imageUtils from "../image/imageUtils";
+import { ExecResult } from "../binutilplusplus";
 
 const debugCommandDocumentationUrl = "https://github.com/Azure/vscode-kubernetes-tools/blob/master/debug-on-kubernetes.md";
 
@@ -74,6 +76,7 @@ export class DebugSession implements IDebugSession {
         const imagePrefix = vscode.workspace.getConfiguration().get<string | null>("vsdocker.imageUser", null);
         const containerEnv = Dictionary.of<string>();
         const portInfo = await this.debugProvider.resolvePortsFromFile(dockerfile, containerEnv);
+        const debugArgs = await this.debugProvider.getDebugArgs();
 
         if (!imagePrefix) {
             await vscode.window.showErrorMessage("No Docker image prefix set for image push. Please set 'vsdocker.imageUser' in your Kubernetes extension settings.");
@@ -81,6 +84,9 @@ export class DebugSession implements IDebugSession {
         }
         if (!portInfo || !portInfo.debugPort || !portInfo.appPort) {
             await this.openInBrowser("Cannot resolve debug/application port from Dockerfile. See the documentation for how to use this command.", debugCommandDocumentationUrl);
+            return;
+        }
+        if (debugArgs.cancelled) {
             return;
         }
 
@@ -95,7 +101,7 @@ export class DebugSession implements IDebugSession {
                 // Run docker image in k8s container.
                 p.report({ message: "Running Docker image on Kubernetes..."});
                 const exposedPorts = definedOf(portInfo.appPort, portInfo.debugPort);
-                appName = await this.runAsDeployment(imageName, exposedPorts, containerEnv);
+                appName = await this.runAsDeployment(imageName, exposedPorts, containerEnv, debugArgs.value);
 
                 // Find the running debug pod.
                 p.report({ message: "Finding the debug pod..."});
@@ -115,7 +121,7 @@ export class DebugSession implements IDebugSession {
 
                 // Start debug session.
                 p.report({ message: `Starting ${this.debugProvider!.getDebuggerType()} debug session...`});  // safe because checked outside the lambda
-                await this.startDebugSession(appName, cwd, proxyResult);
+                await this.startDebugSession(appName, cwd, proxyResult, podName, undefined);
             } catch (error) {
                 vscode.window.showErrorMessage(error);
                 kubeChannel.showOutput(`Debug on Kubernetes failed. The errors were: ${error}.`);
@@ -145,12 +151,6 @@ export class DebugSession implements IDebugSession {
 
         const { targetPod, targetPodNS, containers } = targetPodInfo;
 
-        // Select the image type to attach.
-        this.debugProvider = await this.pickupAndInstallDebugProvider();
-        if (!this.debugProvider) {
-            return;
-        }
-
         // Select the target container to attach.
         // TODO: consolidate with container selection in extension.ts.
         const targetContainer = await this.pickContainer(containers);
@@ -158,32 +158,56 @@ export class DebugSession implements IDebugSession {
             return;
         }
 
-        // Find the debug port to attach.
-        const portInfo = await this.debugProvider.resolvePortsFromContainer(this.kubectl, targetPod, targetPodNS, targetContainer);
-        if (!portInfo || !portInfo.debugPort) {
-            await this.openInBrowser("Cannot resolve the debug port to attach. See the documentation for how to use this command.", debugCommandDocumentationUrl);
+        const processes = await getProcesses(this.kubectl, targetPod, targetPodNS, targetContainer);
+
+        // Select the image type to attach.
+        this.debugProvider = await this.pickupAndInstallDebugProvider(undefined, processes);
+        if (!this.debugProvider) {
             return;
+        }
+
+        const pidToDebug = this.tryFindTargetPid(processes);
+
+        // Find the debug port to attach.
+        const isPortRequired = this.debugProvider.isPortRequired();
+        let portInfo: PortInfo | undefined = undefined;
+        if (isPortRequired) {
+            portInfo = await this.debugProvider.resolvePortsFromContainer(this.kubectl, targetPod, targetPodNS, targetContainer);
+            if (!portInfo || !portInfo.debugPort) {
+                await this.openInBrowser("Cannot resolve the debug port to attach. See the documentation for how to use this command.", debugCommandDocumentationUrl);
+                return;
+            }
         }
 
         vscode.window.withProgress({ location: vscode.ProgressLocation.Window }, async (p) => {
             try {
-                // Setup port-forward.
-                p.report({ message: "Setting up port forwarding..."});
-                const proxyResult = await this.setupPortForward(targetPod, targetPodNS, portInfo.debugPort);
+                let proxyResult: ProxyResult | undefined;
+                if (isPortRequired) {
+                    p.report({ message: "Setting up port forwarding..."});
+                    if (portInfo) {
+                        proxyResult = await this.setupPortForward(targetPod, targetPodNS, portInfo.debugPort);
+                    }
 
-                if (!proxyResult.proxyProcess) {
-                    return;  // No port forwarding, so can't debug
+                    if (!proxyResult || !proxyResult.proxyProcess) {
+                        return;  // No port forwarding, so can't debug
+                    }
                 }
 
                 // Start debug session.
                 p.report({ message: `Starting ${this.debugProvider!.getDebuggerType()} debug session...`});  // safe because checked outside lambda
-                await this.startDebugSession(undefined, workspaceFolder.uri.fsPath, proxyResult);
+
+                await this.startDebugSession(undefined, workspaceFolder.uri.fsPath, proxyResult, targetPod, pidToDebug);
             } catch (error) {
                 vscode.window.showErrorMessage(error);
                 kubeChannel.showOutput(`Debug on Kubernetes failed. The errors were: ${error}.`);
                 kubeChannel.showOutput(`\nTo learn more about the usage of the debug feature, take a look at ${debugCommandDocumentationUrl}`);
             }
         });
+    }
+
+    tryFindTargetPid(processes: ProcessInfo[] | undefined): number | undefined {
+        const supportedProcesses = processes ? (<IDebugProvider>this.debugProvider).filterSupportedProcesses(processes) : undefined;
+        return supportedProcesses && supportedProcesses.length === 1 ? +supportedProcesses[0].pid : undefined;
     }
 
     async getPodTarget(pod?: string, podNamespace?: string) {
@@ -254,8 +278,8 @@ export class DebugSession implements IDebugSession {
         return selectedContainer.name;
     }
 
-    private async pickupAndInstallDebugProvider(baseImage?: string): Promise<IDebugProvider | undefined> {
-        const debugProvider = await providerRegistry.getDebugProvider(baseImage);
+    private async pickupAndInstallDebugProvider(baseImage?: string, runningProcesses?: ProcessInfo[]): Promise<IDebugProvider | undefined> {
+        const debugProvider = await providerRegistry.getDebugProvider(baseImage, runningProcesses);
         if (!debugProvider) {
             return undefined;
         } else if (!await debugProvider.isDebuggerInstalled()) {
@@ -279,12 +303,12 @@ export class DebugSession implements IDebugSession {
         return imageName;
     }
 
-    private async runAsDeployment(image: string, exposedPorts: number[], containerEnv: any): Promise<string> {
+    private async runAsDeployment(image: string, exposedPorts: number[], containerEnv: any, debugArgs?: string): Promise<string> {
         kubeChannel.showOutput(`Starting to run image ${image} on Kubernetes cluster...`, "Run on Kubernetes");
         const imageName = image.split(":")[0];
         const baseName = imageName.substring(imageName.lastIndexOf("/")+1);
         const deploymentName = `${baseName}-debug-${Date.now()}`;
-        const appName = await kubectlUtils.runAsDeployment(this.kubectl, deploymentName, image, exposedPorts, containerEnv);
+        const appName = await kubectlUtils.runAsDeployment(this.kubectl, deploymentName, image, exposedPorts, containerEnv, debugArgs);
         kubeChannel.showOutput(`Finished launching image ${image} as a deployment ${appName} on Kubernetes cluster.`);
         return appName;
     }
@@ -326,11 +350,15 @@ export class DebugSession implements IDebugSession {
         return proxyResult;
     }
 
-    private async startDebugSession(appName: string | undefined, cwd: string, proxyResult: ProxyResult): Promise<void> {
+    private async startDebugSession(appName: string | undefined, cwd: string, proxyResult: ProxyResult | undefined, pod: string, pidToDebug: number | undefined): Promise<void> {
         kubeChannel.showOutput("Starting debug session...", "Start debug session");
         const sessionName = appName || `${Date.now()}`;
-        await this.startDebugging(cwd, sessionName, proxyResult.proxyDebugPort, proxyResult.proxyAppPort, async () => {
-            if (proxyResult.proxyProcess) {
+
+        const proxyDebugPort = proxyResult ? proxyResult.proxyDebugPort : undefined;
+        const proxyAppPort = proxyResult ? proxyResult.proxyAppPort : undefined;
+
+        await this.startDebugging(cwd, sessionName, proxyDebugPort, proxyAppPort, pod, pidToDebug, async () => {
+            if (proxyResult && proxyResult.proxyProcess) {
                 proxyResult.proxyProcess.kill();
             }
             if (appName) {
@@ -356,9 +384,9 @@ export class DebugSession implements IDebugSession {
 
     private async cleanupResource(resourceId: string): Promise<void> {
         kubeChannel.showOutput(`Starting to clean up debug resource...`, "Cleanup debug resource");
-        const deleteResult = await this.kubectl.invokeAsync(`delete ${resourceId}`);
-        if (!deleteResult || deleteResult.code !== 0) {
-            kubeChannel.showOutput(`Kubectl command failed: ${deleteResult ? deleteResult.stderr : "Unable to run kubectl"}`);
+        const deleteResult = await this.kubectl.invokeCommand(`delete ${resourceId}`);
+        if (ExecResult.failed(deleteResult)) {
+            kubeChannel.showOutput(ExecResult.failureMessage(deleteResult, {}));
             return;
         } else {
             kubeChannel.showOutput(`Resource ${resourceId} is removed successfully.`);
@@ -384,8 +412,19 @@ export class DebugSession implements IDebugSession {
 
         const nsarg = podNamespace ? [ '--namespace', podNamespace ] : [];
 
+        const proxyProcess = await kubectl.spawnCommand(["port-forward", podName, ...nsarg, ...portMapping]);
+
+        if (proxyProcess.resultKind === 'exec-bin-not-found') {
+            kubectl.reportFailure(proxyProcess, { whatFailed: 'Failed to forward debug port' });
+            return {
+                proxyProcess: undefined,
+                proxyDebugPort,
+                proxyAppPort
+            };
+        }
+
         return {
-            proxyProcess: await kubectl.spawnAsChild(["port-forward", podName, ...nsarg, ...portMapping]),
+            proxyProcess: proxyProcess.childProcess,
             proxyDebugPort,
             proxyAppPort
         };
@@ -421,7 +460,7 @@ export class DebugSession implements IDebugSession {
         return forwardingRegExp.test(message);
     }
 
-    private async startDebugging(workspaceFolder: string, sessionName: string, proxyDebugPort: number, proxyAppPort: number, onTerminateCallback: () => Promise<any>): Promise<boolean> {
+    private async startDebugging(workspaceFolder: string, sessionName: string, proxyDebugPort: number | undefined, proxyAppPort: number | undefined, pod: string, pidToDebug: number | undefined, onTerminateCallback: () => Promise<any>): Promise<boolean> {
         const disposables: vscode.Disposable[] = [];
         disposables.push(vscode.debug.onDidStartDebugSession((debugSession) => {
             if (debugSession.name === sessionName) {
@@ -444,7 +483,7 @@ export class DebugSession implements IDebugSession {
             return false;
         }
 
-        const success = await this.debugProvider.startDebugging(workspaceFolder, sessionName, proxyDebugPort);
+        const success = await this.debugProvider.startDebugging(workspaceFolder, sessionName, proxyDebugPort, pod, pidToDebug);
         if (!success) {
             disposables.forEach((d) => d.dispose());
             await onTerminateCallback();
