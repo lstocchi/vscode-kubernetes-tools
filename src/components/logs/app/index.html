@@ -109,19 +109,19 @@
                 <vscode-inputbox id="tail-input" value="-1"></vscode-inputbox>
             </div>
             <div class="float-right mr-50">
-                <vscode-button id="runBtn">Run</vscode-button>
-                <vscode-button id="stopBtn" class="display-none">Stop</vscode-button>
-                <vscode-button id="clearBtn" class="display-none">Clear</vscode-button>
-                <vscode-button id="resetBtn">Reset</vscode-button>                
+                <vscode-button id="runBtn" class="mr-2">Run</vscode-button>
+                <vscode-button id="stopBtn" class="display-none mr-2">Stop</vscode-button>
+                <vscode-button id="clearBtn" class="display-none mr-2">Clear</vscode-button>
+                <vscode-button id="resetBtn mr-2">Reset</vscode-button>                
             </div>
             <div class="tooltip ml-10 mr-2">To terminal:
                 <span class="tooltiptext">Redirect logs to terminal.</span>
             </div>  
             <vscode-checkbox id="terminal-chk"></vscode-checkbox>
         </div>
-        <div class="mt-5 mr-2">
-            <span>Filter:</span>
-            <vscode-select id="filter-select" class="w-130">
+        <div class="mt-5">
+            <span class="mr-2">Filter:</span>
+            <vscode-select id="filter-select" class="w-130 mr-2">
                 <vscode-option value='all' selected>all</vscode-option>
                 <vscode-option value='include'>that match</vscode-option>
                 <vscode-option value='exclude'>that don't match</vscode-option>
