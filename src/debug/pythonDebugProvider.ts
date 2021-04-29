@@ -1,12 +1,14 @@
 import * as path from "path";
 import * as vscode from "vscode";
 
-import { IDebugProvider, PortInfo } from "./debugProvider";
+import { IDebugProvider, PortInfo, Cancellable } from "./debugProvider";
 import { suggestedShellForContainer } from '../utils/container-shell';
 import * as config from '../components/config/config';
 import * as extensionUtils from "../extensionUtils";
 import { Kubectl } from "../kubectl";
 import { kubeChannel } from "../kubeChannel";
+import { ProcessInfo } from "./debugUtils";
+import { ExecResult } from "../binutilplusplus";
 
 const debuggerType = 'python';
 const defaultPythonDebuggerExtensionId = 'ms-python.python';
@@ -23,14 +25,14 @@ export class PythonDebugProvider implements IDebugProvider {
         if (vscode.extensions.getExtension(defaultPythonDebuggerExtensionId)) {
             return true;
         }
-        const answer = await vscode.window.showInformationMessage(`Pyhon debugging requires the '${defaultPythonDebuggerExtensionId}' extension. Would you like to install it now?`, "Install Now");
+        const answer = await vscode.window.showInformationMessage(`Python debugging requires the '${defaultPythonDebuggerExtensionId}' extension. Would you like to install it now?`, "Install Now");
         if (answer === "Install Now") {
             return await extensionUtils.installVscodeExtension(defaultPythonDebuggerExtensionId);
         }
         return false;
     }
 
-    public async startDebugging(workspaceFolder: string, sessionName: string, port: number): Promise<boolean> {
+    public async startDebugging(workspaceFolder: string, sessionName: string, port: number | undefined, _pod: string, _pidToDebug: number | undefined): Promise<boolean> {
         const debugConfiguration: vscode.DebugConfiguration = {
             type: "python",
             request: "attach",
@@ -74,8 +76,8 @@ export class PythonDebugProvider implements IDebugProvider {
             const nsarg = podNamespace ? `--namespace ${podNamespace}` : '';
             const containerCommand = containerName? `-c ${containerName}` : '';
             const execCmd = `exec ${podName} ${nsarg} ${containerCommand} -- ${this.shell} -c 'readlink /proc/1/cwd'`;
-            const execResult = await kubectl.invokeAsync(execCmd);
-            if (execResult !== undefined && execResult.code === 0) {
+            const execResult = await kubectl.invokeCommand(execCmd);
+            if (ExecResult.succeeded(execResult)) {
                 const remoteRoot = execResult.stdout.replace(/(\r\n|\n|\r)/gm, '');
                 kubeChannel.showOutput(`Got remote root from container: ${remoteRoot}`);
                 return remoteRoot;
@@ -88,5 +90,17 @@ export class PythonDebugProvider implements IDebugProvider {
         }
 
         return undefined;
+    }
+
+    public filterSupportedProcesses(_processes: ProcessInfo[]): ProcessInfo[] | undefined {
+        return undefined;
+    }
+
+    public isPortRequired(): boolean {
+        return true;
+    }
+
+    public async getDebugArgs(): Promise<Cancellable> {
+        return { cancelled: false };
     }
 }

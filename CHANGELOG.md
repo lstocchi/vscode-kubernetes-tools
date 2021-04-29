@@ -1,5 +1,124 @@
 # Change Log
 
+## [1.3.1]
+
+* We now have a unified Logs command and view, replacing the old Follow and Show commands.
+  The new view has plenty of new options for a much better integrated experience!
+* We also have a new Helm Fetch Values command which replaces Inspect Values and supports
+  syntax highlighting and editing of the values
+* The debug integration now works with Go
+* Updated the ingress snippet to the new API version
+* The Describe command now does more comprehensive prompting so you shouldn't need to
+  type freeform resource names
+* Fixed the dashboard command not working
+* Fixed over-permissive permissions on installed binaries
+
+Thanks to Dakota Clark, Matt Fisher, Shreyas Karnik and Luca Stocchi.
+
+## [1.3.0]
+
+* New API for local tunnel debugger integration
+* Helm release history now shows version of chart and app (in tooltip)
+* Clicking Helm release history node now shows that release not latest
+* Install Dependencies now fetches the correct binaries for arm and arm64 architectures
+* We now ignore tool paths at workspace level. This patches [CVE-2021-28448](https://msrc.microsoft.com/update-guide/vulnerability/CVE-2021-28448)
+
+Thanks to Michelle Soedal.
+
+## [1.2.4]
+
+* We have removed Draft support from the extension, because the underlying Draft tool
+  had been archived
+* The Configuration API now allows other extensions to detect config/context changes
+* Fixed node pods having the wrong names and namespaces (which may also have affected
+  other features such as log retrieval)
+* Fixed an issue where a couple of API contract files were incorrectly modified
+* Fixed Follow Logs not working with nondefault kubeconfig
+* Fixed some Helm completion items
+* Internal changes to the implementation of the Cluster Explorer API
+* Internal changes to the build and publish process
+
+Thanks to Adrian Bolt, Matt Fisher, Luca Stocchi and Yevhen Vydolob.
+
+## [1.2.3]
+
+* We now pack the extension to improve load times.  _This was quite an invasive change -
+  please let us know if you run into any funnies._
+* Added example of setings JSON for disabling linters
+* Fixed a missing contribution credit in 1.2.2
+* Fixed typo in debugger documentation
+
+Thanks to Jason Behnke and Willem Odendaal.
+
+## 1.2.2
+
+* It now (finally!) works with Snap
+* New snippets for:
+  * ingress
+  * jobs
+  * persistent volumes
+  * persistent volume claims
+  * stateful sets
+* You can now see and change context and namespace from the status bar
+* We now show job pods as children of the job node
+* We've improved Describe output to make it more usable
+* New Collapse All button on Cluster Explorer
+* Fixed permissions on auto-installed kubectl
+* Fixed linter issue with multi-object file
+* Fixed an error handling kubectl output with empty columns
+* Fixed an error that could prevent other extensions handling YAML files
+* Fixed an error with the terminal shell path
+* Fixed the tooltip for the Helm `has` function
+* Fixed issue where strings from Helm repo could be passed to shell
+
+Thanks to Jonas Goronczy, Tatsat Mishra, Bhargav Nookala and Luca Stocchi.
+
+## 1.2.1
+
+* Helm releases now have Uninstall and Rollback commands
+* Follow Logs now has a 'scroll to bottom' button
+* We now support Debug (Launch) for Node.js projects
+* You can now click on a Helm Repos tree error node to see what the problem was
+* Fixed Preview Template command with Helm 3
+* Fixed path escaping issue with nested directories when debugging .NET applications
+* Fixed issue with attaching to Node.js applications
+
+Thanks to Eli Arbel, Brian Fitzpatrick, Shreyas Karnik, Beda Kuster and Luca Stocchi.
+
+## 1.2.0
+
+* Added Cluster Explorer API v1.1 (watch support, and metadata now always present)
+* Fixed filter not being applied to new logs in Follow Logs
+* Fixed breakpoints not working when debugging .NET applications
+* Fixed Start Minikube command not working because status check failed
+* Fixed issue where VS Code was injecting garbage into Set Kubeconfig
+* Fixed error and leak when reusing an existing logs panel
+
+Thanks to Matthias Janson and Luca Stocchi.  Luca also joins the project as a core
+maintainer!
+
+## 1.1.1
+
+* You can now watch resources in the cluster explorer - get live updates as they change
+* Cloud explorer Merge To Kubeconfig command now creates a default kubeconfig if no kubeconfig exists
+* Updated .NET debugging support to new C# extension ID
+* Fixed AKS dashboard not showing on Kubernetes 1.14 or above
+
+Thanks to hermanho, Mattias Karlsson and Luca Stocchi.
+
+## 1.1.0
+
+* Added .NET debugging support
+* Added Configuration API v1
+* You can now delete namespaces if you _really really_ want to
+* Automatic `kubectl` versioning no longer needs a version of `kubectl` installed to get started
+* Updated Helm string functions
+* Added Sprig ternary function
+* Updated Deployment snippet to `apps/v1`
+* Install Dependencies button correctly handles multi-OS installs (specifically for Windows/WSL via VS Code Remote)
+
+Thanks to Patrick Carnahan, Ted Chambers, amirschw and Michelle Soedal.
+
 ## 1.0.9
 
 * Added syntax highlighting for Helm 3 `Chart.lock` files

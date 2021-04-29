@@ -21,8 +21,7 @@ Features include:
 * Get or follow logs and events from your clusters.
 * Forward local ports to your application's pods.
 * Create Helm charts using scaffolding and snippets.
-* Bootstrap applications using Draft, and rapidly deploy and debug them to speed up
-  the development loop.
+* Watch resources in the cluster explorer and get live updates as they change
 
 **What's new in this version?**  See the [change log](CHANGELOG.md) to find out!
 
@@ -41,7 +40,6 @@ use the extension to build applications rather than only browse.
 * `kubectl`
 * `docker` or `buildah`
 * `helm`
-* `draft`
 
 Optional tools:
 * `az` (Azure CLI - only if using the extension to create or register Azure clusters)
@@ -101,10 +99,11 @@ If you want to skip TLS verification for a particular cluster, you can edit your
 
    * `Kubernetes: Load` - Load a resource from the Kubernetes API and create a new editor window.
    * `Kubernetes: Get` - Get the status for a specific resource.
-   * `Kubernetes: Follow Logs` - Follow logs for a pod in an output window.
-   * `Kubernetes: Show Logs` - Show logs for a pod in an output window.
+   * `Kubernetes: Logs` - Open a view with a set of options to display/follow logs.
    * `Kubernetes: Follow Events` - Follow events on a selected namespace.
    * `Kubernetes: Show Events` - Show events on a selected namespace.
+   * `Kubernetes: Watch` - Watch a specific resource or all resources of that object type, and update the cluster explorer as they change
+   * `Kubernetes: Stop Watching` - Stop watching the specific resource
 
 #### Commands while viewing a Kubernetes manifest file
 
@@ -182,30 +181,23 @@ Minikube tools to be installed and available on your PATH.
      * requirements.yaml (Add and update dependencies)
    * Right-click on a chart .tgz file, and choose inspect chart to preview all configurable chart values.
 
-### Draft
-
-[Draft](https://kubernetes.io/blog/2017/05/draft-kubernetes-container-development/) is a tool to simplify the process of developing a new Kubernetes application, by creating the necessary deployment components and by keeping code in the cluster in sync with the code on your computer.
-
-  * `Draft: Create` - Set up Draft in the current folder (prerequisite for `Draft: Up`)
-  * `Draft: Up` - Runs Draft to package the current folder and push it to your cluster. To allow for cluster changes,
-  * `Draft: Version` - Get the version of the local Draft client
-
-**NOTE:** Draft itself is in 'draft' form and is not yet stable. So the extension support for Draft is strictly experimental - assumptions may break, and commands and behavior may change!
-
 ## Extension Settings
 
    * `vs-kubernetes` - Parent for Kubernetes-related extension settings
        * `vs-kubernetes.namespace` - The namespace to use for all commands
        * `vs-kubernetes.kubectl-path` - File path to the kubectl binary. Note this is the binary file itself, not just the directory containing the file. On Windows, this must contain the `.exe` extension.
        * `vs-kubernetes.helm-path` - File path to the helm binary. Note this is the binary file itself, not just the directory containing the file. On Windows, this must contain the `.exe` extension.
-       * `vs-kubernetes.draft-path` - File path to the draft binary. Note this is the binary file itself, not just the directory containing the file. On Windows, this must contain the `.exe` extension.
        * `vs-kubernetes.minikube-path` - File path to the minikube binary. Note this is the binary file itself, not just the directory containing the file. On Windows, this must contain the `.exe` extension.
-       * `vs-kubernetes.kubectlVersioning` - By default, the extension uses the `kubectl` binary you provide on the system PATH or in the `vs-kubernetes.kubectl-path` configuration setting. If you set this setting to `infer`, then for each cluster the extension will attempt to identify the cluster version and download a compatible `kubectl` binary.  This improves compatibility if you have multiple Kubernetes versions in play, but may be slower.  **IMPORTANT:** Even if this setting is `infer`, you need a 'bootstrap' copy of `kubectl` on your PATH or at the `vs-kubernetes.kubectl-path` location - we need this to find out the server version so we know which version of `kubectl` to download!  Also note that this setting is checked only when the extension loads; if you change it, you must reload the extension.
+       * `vs-kubernetes.kubectlVersioning` - By default, the extension uses the `kubectl` binary you provide on the system PATH or in the `vs-kubernetes.kubectl-path` configuration setting. If you set this setting to `infer`, then for each cluster the extension will attempt to identify the cluster version and download a compatible `kubectl` binary.  This improves compatibility if you have multiple Kubernetes versions in play, but may be slower.  **Note:** this setting is checked only when the extension loads; if you change it, you must reload the extension.
        * `vs-kubernetes.kubeconfig` - File path to the kubeconfig file you want to use. This overrides both the default kubeconfig and the KUBECONFIG environment variable.
        * `vs-kubernetes.knownKubeconfigs` - An array of file paths of kubeconfig files that you want to be able to quickly switch between using the Set Kubeconfig command.
        * `vs-kubernetes.autoCleanupOnDebugTerminate` - The flag to control whether to auto cleanup the created deployment and associated pod by the command "Kubernetes: Debug (Launch)". The cleanup action occurs when it failed to start debug session or debug session terminated. If not specified, the extension will prompt for whether to clean up or not. You might choose not to clean up if you wanted to view pod logs, etc.
        * `vs-kubernetes.outputFormat` - The output format that you prefer to view Kubernetes manifests in. One of "yaml" or "json". Defaults to "yaml".
-       * `logsDisplay` - Where and how to display Kubernetes logs.  One of `webview` (display in a filterable HTML view) and `terminal` (run the command in the VS Code terminal)
+       * `vs-kubernetes.resources-to-watch` - List of resources to be watched. To identify a resource the extension uses the label displayed in the cluster explorer. E.g. ["Pods", "Services", "Namespaces"].
+       * `vscode-kubernetes.enable-snap-flag` - Enables compatibility with instances of VS Code that were installed using snap.
+       * `vs-kubernetes.disable-context-info-status-bar` - Disable displaying your current Kubernetes context in VS Code's status bar. When active, it can be used to switch context from the status bar.
+       * `vs-kubernetes.disable-namespace-info-status-bar` - Disable displaying your current Kubernetes namespace in VS Code's status bar. When active, it can be used to switch namespace from the status bar.
+       * `vs-kubernetes.enable-minimal-describe-workflow` - Enables the minimal describe workflow. By executing the describe command the queries to the cluster are reduced at minimum and users are able to freely type the resource name to describe. Guided prompt options are limited to Deployments, Jobs, Pods and Services.
    * `vsdocker.imageUser` - Image prefix for the container images e.g. 'docker.io/brendanburns'
    * `checkForMinikubeUpgrade` - On extension startup, notify if a minikube upgrade is available. Defaults to true.
    * `disable-lint` - Disable all linting of Kubernetes files
@@ -213,9 +205,9 @@ Minikube tools to be installed and available on your PATH.
 
 ## Custom tool locations
 
-For `kubectl`, `helm` and `draft` the binaries do not need to be on the system PATH. You can configure the extension by specifying the locations using the appropriate `vs-kubernetes -> vs-kubernetes.${tool}-path` configuration setting.  See [Extension Settings](#extension-settings) below.
+For `kubectl` and `helm`, the binaries do not need to be on the system PATH. You can configure the extension by specifying the locations using the appropriate `vs-kubernetes -> vs-kubernetes.${tool}-path` configuration setting.  See [Extension Settings](#extension-settings) below.
 
-The extension can install `kubectl`, `helm` and `draft` for you if they are missing - choose **Install dependencies** when you see an error notification for the missing tool.  This will set `kubectl-path`, `helm-path` and `draft-path` entries in your configuration - the programs will *not* be installed on the system PATH, but this will be sufficient for them to work with the extension.
+The extension can install `kubectl` and `helm` for you if they are missing - choose **Install dependencies** when you see an error notification for the missing tool.  This will set `kubectl-path` and `helm-path` entries in your configuration for the current OS (see "Portable extension configuration" below) - the programs will *not* be installed on the system PATH, but this will be sufficient for them to work with the extension.
 
 If you are working with Azure Container Services or Azure Kubernetes Services, then you can install and configure `kubectl` using the `Kubernetes: Add Existing Cluster` command.
 
@@ -225,7 +217,6 @@ If you move your configuration file between machines with different OSes (and th
 
   * `vs-kubernetes.kubectl-path`
   * `vs-kubernetes.helm-path`
-  * `vs-kubernetes.draft-path`
   * `vs-kubernetes.minikube-path`
 
 For example, consider the following settings file:
@@ -252,10 +243,21 @@ The extension supports linting Kubernetes YAML files for potential problems or s
 Here are the various linters, you can enable or disable them individually using the `disable-linters` configuration value.
   * `resource-limits`: Warn when a Pod is missing resource limits
 
+```json
+{
+  "vs-kubernetes": {
+    "disable-linters": [
+      "resource-limits"
+    ]
+  }
+}
+```
+
 ## Known issues
 
-  * `Kubernetes: Debug` command currently works only with Node.js and Java applications
+  * `Kubernetes: Debug` command currently works only with Go, Node.js, Java, Python and .NET applications
   * For deeply nested Helm charts, template previews are generated against highest (umbrella) chart values (though for `Helm: Template` calls you can pick your chart)
+  * When installing VS Code and/or kubectl through `snap` on a Linux system, you may face some permissions error which will prevent this extension to work correctly. As a workaround you can set up the `vs-kubernetes.enable-snap-flag` setting to `true` in your user or workspace settings. 
 
 ## Release notes
 

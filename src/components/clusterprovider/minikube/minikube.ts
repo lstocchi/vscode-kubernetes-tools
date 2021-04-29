@@ -34,11 +34,11 @@ export interface Minikube {
     status(): Promise<MinikubeInfo>;
 }
 
-export function create(host: Host, fs: FS, shell: Shell, installDependenciesCallback: () => void): Minikube {
-    return new MinikubeImpl(host, fs, shell, installDependenciesCallback, false);
+export function create(host: Host, fs: FS, shell: Shell): Minikube {
+    return new MinikubeImpl(host, fs, shell, false);
 }
 
-// TODO: these are the same as we are using for Draft (and kubectl?) -
+// TODO: these are the same as we are using for kubectl -
 // we really need to unify them (and the designs).
 
 export enum CheckPresentMode {
@@ -50,7 +50,6 @@ interface Context {
     readonly host: Host;
     readonly fs: FS;
     readonly shell: Shell;
-    readonly installDependenciesCallback: () => void;
     binFound: boolean;
     binPath: string;
 }
@@ -58,8 +57,8 @@ interface Context {
 class MinikubeImpl implements Minikube {
     private readonly context: Context;
 
-    constructor(host: Host, fs: FS, shell: Shell, installDependenciesCallback: () => void, toolFound: boolean) {
-        this.context = { host: host, fs: fs, shell: shell, installDependenciesCallback: installDependenciesCallback, binFound: toolFound, binPath: 'minikube' };
+    constructor(host: Host, fs: FS, shell: Shell, toolFound: boolean) {
+        this.context = { host: host, fs: fs, shell: shell, binFound: toolFound, binPath: 'minikube' };
     }
 
     checkPresent(mode: CheckPresentMode): Promise<boolean> {
@@ -230,7 +229,11 @@ async function minikubeStatus(context: Context): Promise<MinikubeInfo> {
     const result = await context.shell.exec(`"${context.binPath}" status`);
 
     if (result && result.stderr.length === 0) {
-        const hostStatus = result.stdout.split('\n')[0].split(': ')[1].toLowerCase();
+        const hostItem = result.stdout.split('\n').find((status) => status.includes('host'));
+        if (!hostItem) {
+            throw new Error(`Failed to get host status: Unable to run Minikube`);
+        }
+        const hostStatus = hostItem.split(': ')[1].toLowerCase();
         return {
             running: 'stopped' !== hostStatus,
             message: `${result.stdout}`

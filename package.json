@@ -2,10 +2,10 @@
     "name": "vscode-kubernetes-tools",
     "displayName": "Kubernetes",
     "description": "Develop, deploy and debug Kubernetes applications",
-    "version": "1.0.9",
+    "version": "1.3.1",
     "publisher": "ms-kubernetes-tools",
     "engines": {
-        "vscode": "^1.31.0"
+        "vscode": "^1.52.0"
     },
     "license": "MIT",
     "categories": [
@@ -27,9 +27,11 @@
     "activationEvents": [
         "onCommand:extension.vsKubernetesCreate",
         "onCommand:extension.vsKubernetesCreateFile",
+        "onCommand:extension.vsKubernetesAddWatch",
         "onCommand:extension.vsKubernetesDelete",
         "onCommand:extension.vsKubernetesDeleteNow",
         "onCommand:extension.vsKubernetesDeleteUri",
+        "onCommand:extension.vsKubernetesDeleteWatch",
         "onCommand:extension.vsKubernetesDescribe.Refresh",
         "onCommand:extension.vsKubernetesApply",
         "onCommand:extension.vsKubernetesApplyFile",
@@ -37,8 +39,7 @@
         "onCommand:extension.vsKubernetesLoad",
         "onCommand:extension.vsKubernetesGet",
         "onCommand:extension.vsKubernetesRun",
-        "onCommand:extension.vsKubernetesShowLogs",
-        "onCommand:extension.vsKubernetesFollowLogs",
+        "onCommand:extension.vsKubernetesLogs",
         "onCommand:extension.vsKubernetesExpose",
         "onCommand:extension.vsKubernetesDescribe",
         "onCommand:extension.vsKubernetesSync",
@@ -47,6 +48,8 @@
         "onCommand:extension.vsKubernetesDiff",
         "onCommand:extension.vsKubernetesScale",
         "onCommand:extension.vsKubernetesDebug",
+        "onCommand:extension.vsKubernetesDebugLocalTunnel",
+        "onCommand:extension.vsKubernetesFindLocalTunnelDebugProviders",
         "onCommand:extension.vsKubernetesRemoveDebug",
         "onCommand:extension.vsKubernetesConfigureFromCluster",
         "onCommand:extension.vsKubernetesCreateCluster",
@@ -71,17 +74,16 @@
         "onCommand:extension.helmInsertReq",
         "onCommand:extension.helmDepUp",
         "onCommand:extension.helmInspectChart",
-        "onCommand:extension.helmInspectValues",
+        "onCommand:extension.helmFetchValues",
         "onCommand:extension.helmGet",
         "onCommand:extension.helmPackage",
         "onCommand:extension.helmFetch",
         "onCommand:extension.helmInstall",
+        "onCommand:extension.helmUninstall",
+        "onCommand:extension.helmRollback",
         "onCommand:extension.helmDependencies",
         "onCommand:extension.helmConvertToTemplate",
         "onCommand:extension.helmParameterise",
-        "onCommand:extension.draftVersion",
-        "onCommand:extension.draftCreate",
-        "onCommand:extension.draftUp",
         "onView:extension.vsKubernetesExplorer",
         "onView:extension.vsKubernetesHelmRepoExplorer",
         "onView:kubernetes.cloudExplorer",
@@ -91,17 +93,17 @@
         "onCommand:kubernetes.portForwarding.showSessions",
         "onLanguage:helm",
         "onLanguage:yaml",
-        "onFileSystem:k8smsx",
-        "onDebugResolve:draft"
+        "onFileSystem:k8smsx"
     ],
-    "main": "./out/src/extension",
+    "main": "./dist/extension",
     "contributes": {
         "configuration": {
             "type": "object",
-            "title": "Kubernetes configuration",
+            "title": "Kubernetes",
             "properties": {
                 "vs-kubernetes": {
                     "type": "object",
+                    "title": "Additional settings",
                     "description": "Kubernetes configuration",
                     "properties": {
                         "vs-kubernetes.namespace": {
@@ -110,67 +112,51 @@
                         },
                         "vs-kubernetes.kubectl-path": {
                             "type": "string",
-                            "description": "File path to a kubectl binary."
+                            "description": "[deprecated - use top level property] File path to a kubectl binary."
                         },
                         "vs-kubernetes.helm-path": {
                             "type": "string",
-                            "description": "File path to a helm binary."
-                        },
-                        "vs-kubernetes.draft-path": {
-                            "type": "string",
-                            "description": "File path to a draft binary."
+                            "description": "[deprecated - use top level property] File path to a helm binary."
                         },
                         "vs-kubernetes.minikube-path": {
                             "type": "string",
-                            "description": "File path to a minikube binary."
+                            "description": "[deprecated - use top level property] File path to a minikube binary."
                         },
                         "vs-kubernetes.kubectl-path.windows": {
                             "type": "string",
-                            "description": "File path to a kubectl binary."
+                            "description": "[deprecated - use top level property] File path to a kubectl binary."
                         },
                         "vs-kubernetes.helm-path.windows": {
                             "type": "string",
-                            "description": "File path to a helm binary."
-                        },
-                        "vs-kubernetes.draft-path.windows": {
-                            "type": "string",
-                            "description": "File path to a draft binary."
+                            "description": "[deprecated - use top level property] File path to a helm binary."
                         },
                         "vs-kubernetes.minikube-path.windows": {
                             "type": "string",
-                            "description": "File path to a minikube binary."
+                            "description": "[deprecated - use top level property] File path to a minikube binary."
                         },
                         "vs-kubernetes.kubectl-path.mac": {
                             "type": "string",
-                            "description": "File path to a kubectl binary."
+                            "description": "[deprecated - use top level property] File path to a kubectl binary."
                         },
                         "vs-kubernetes.helm-path.mac": {
                             "type": "string",
-                            "description": "File path to a helm binary."
-                        },
-                        "vs-kubernetes.draft-path.mac": {
-                            "type": "string",
-                            "description": "File path to a draft binary."
+                            "description": "[deprecated - use top level property] File path to a helm binary."
                         },
                         "vs-kubernetes.minikube-path.mac": {
                             "type": "string",
-                            "description": "File path to a minikube binary."
+                            "description": "[deprecated - use top level property] File path to a minikube binary."
                         },
                         "vs-kubernetes.kubectl-path.linux": {
                             "type": "string",
-                            "description": "File path to a kubectl binary."
+                            "description": "[deprecated - use top level property] File path to a kubectl binary."
                         },
                         "vs-kubernetes.helm-path.linux": {
                             "type": "string",
-                            "description": "File path to a helm binary."
-                        },
-                        "vs-kubernetes.draft-path.linux": {
-                            "type": "string",
-                            "description": "File path to a draft binary."
+                            "description": "[deprecated - use top level property] File path to a helm binary."
                         },
                         "vs-kubernetes.minikube-path.linux": {
                             "type": "string",
-                            "description": "File path to a minikube binary."
+                            "description": "[deprecated - use top level property] File path to a minikube binary."
                         },
                         "vs-kubernetes.kubectlVersioning": {
                             "type": "string",
@@ -236,14 +222,6 @@
                             ],
                             "description": "Container image build tool. By default, Docker."
                         },
-                        "logsDisplay": {
-                            "type": "string",
-                            "enum": [
-                                "terminal",
-                                "webview"
-                            ],
-                            "description": "Where to display Kubernetes pod logs. Default is webview"
-                        },
                         "vs-kubernetes.python-autodetect-remote-root": {
                             "type": "boolean",
                             "description": "If true will try to automatically get the root location of the source code in the container (Python)."
@@ -255,13 +233,36 @@
                         "vs-kubernetes.python-debug-port": {
                             "type": "number",
                             "description": "Remote debugging port for Python. Usually 5678."
+                        },
+                        "vs-kubernetes.resources-to-watch": {
+                            "type": "array",
+                            "description": "List of resources to be watched."
+                        },
+                        "vs-kubernetes.enable-snap-flag": {
+                            "type": "boolean",
+                            "description": "Enables compatibility with instances of VS Code that were installed using snap."
+                        },
+                        "vs-kubernetes.disable-context-info-status-bar": {
+                            "type": "boolean",
+                            "description": "Disable displaying your current Kubernetes context in VS Code's status bar."
+                        },
+                        "vs-kubernetes.disable-namespace-info-status-bar": {
+                            "type": "boolean",
+                            "description": "Disable displaying your current Kubernetes namespace in VS Code's status bar."
+                        },
+                        "vs-kubernetes.local-tunnel-debug-provider": {
+                            "type": "string",
+                            "description": "Configure the Local Tunnel debug provider you want to use by default."
+                        },
+                        "vs-kubernetes.enable-minimal-describe-workflow": {
+                            "type": "boolean",
+                            "description": "Enables the minimal describe workflow. It reduces the queries to the cluster but the guided prompt has limited options."
                         }
                     },
                     "default": {
                         "vs-kubernetes.namespace": "",
                         "vs-kubernetes.kubectl-path": "",
                         "vs-kubernetes.helm-path": "",
-                        "vs-kubernetes.draft-path": "",
                         "vs-kubernetes.minikube-path": "",
                         "vs-kubernetes.kubectlVersioning": "user-provided",
                         "vs-kubernetes.outputFormat": "yaml",
@@ -271,8 +272,8 @@
                         "vs-kubernetes.nodejs-autodetect-remote-root": true,
                         "vs-kubernetes.nodejs-remote-root": "",
                         "vs-kubernetes.nodejs-debug-port": 9229,
+                        "vs-kubernetes.local-tunnel-debug-provider": "",
                         "checkForMinikubeUpgrade": true,
-                        "logsDisplay": "webview",
                         "imageBuildTool": "Docker"
                     }
                 },
@@ -280,6 +281,78 @@
                     "type": "string",
                     "default": null,
                     "description": "Image prefix for docker images ie 'docker.io/brendanburns'"
+                },
+                "vscode-kubernetes.kubectl-path": {
+                    "type": "string",
+                    "scope": "machine",
+                    "title": "Path to kubectl",
+                    "description": "File path to a kubectl binary. (You can override this on a per-OS basis if required)."
+                },
+                "vscode-kubernetes.helm-path": {
+                    "type": "string",
+                    "scope": "machine",
+                    "title": "Helm path",
+                    "description": "File path to a helm binary. (You can override this on a per-OS basis if required)."
+                },
+                "vscode-kubernetes.minikube-path": {
+                    "type": "string",
+                    "scope": "machine",
+                    "title": "Minikube path",
+                    "description": "File path to a minikube binary. (You can override this on a per-OS basis if required)."
+                },
+                "vscode-kubernetes.kubectl-path.windows": {
+                    "type": "string",
+                    "scope": "machine",
+                    "title": "Path to kubectl (Windows)",
+                    "description": "File path to a kubectl binary."
+                },
+                "vscode-kubernetes.helm-path.windows": {
+                    "type": "string",
+                    "scope": "machine",
+                    "title": "Helm path (Windows)",
+                    "description": "File path to a helm binary."
+                },
+                "vscode-kubernetes.minikube-path.windows": {
+                    "type": "string",
+                    "scope": "machine",
+                    "title": "Minikube path (Windows)",
+                    "description": "File path to a minikube binary."
+                },
+                "vscode-kubernetes.kubectl-path.mac": {
+                    "type": "string",
+                    "scope": "machine",
+                    "title": "Path to kubectl (Mac)",
+                    "description": "File path to a kubectl binary."
+                },
+                "vscode-kubernetes.helm-path.mac": {
+                    "type": "string",
+                    "scope": "machine",
+                    "title": "Helm path (Mac)",
+                    "description": "File path to a helm binary."
+                },
+                "vscode-kubernetes.minikube-path.mac": {
+                    "type": "string",
+                    "scope": "machine",
+                    "title": "Minikube path (Mac)",
+                    "description": "File path to a minikube binary."
+                },
+                "vscode-kubernetes.kubectl-path.linux": {
+                    "type": "string",
+                    "scope": "machine",
+                    "title": "Path to kubectl (Linux)",
+                    "description": "File path to a kubectl binary."
+                },
+                "vscode-kubernetes.helm-path.linux": {
+                    "type": "string",
+                    "scope": "machine",
+                    "title": "Helm path (Linux)",
+                    "description": "File path to a helm binary."
+                },
+                "vscode-kubernetes.minikube-path.linux": {
+                    "type": "string",
+                    "scope": "machine",
+                    "title": "Minikube path (Linux)",
+                    "description": "File path to a minikube binary."
                 }
             }
         },
@@ -339,11 +412,6 @@
                     "when": "resourceLangId == yaml && config.vs-kubernetes.resource-commands-on-files",
                     "command": "extension.vsKubernetesDeleteUri",
                     "group": "2_k8s_3"
-                },
-                {
-                    "when": "",
-                    "command": "extension.helmInspectValues",
-                    "group": "2_helm@98"
                 },
                 {
                     "when": "",
@@ -455,6 +523,16 @@
                     "when": "view == extension.vsKubernetesExplorer && viewItem =~ /vsKubernetes\\.kind/i"
                 },
                 {
+                    "command": "extension.vsKubernetesAddWatch",
+                    "group": "3@1",
+                    "when": "view == extension.vsKubernetesExplorer && viewItem =~ /k8s-watchable/i"
+                },
+                {
+                    "command": "extension.vsKubernetesDeleteWatch",
+                    "group": "3@2",
+                    "when": "view == extension.vsKubernetesExplorer && viewItem =~ /k8s-watchable/i"
+                },
+                {
                     "command": "extension.vsKubernetesLoad",
                     "group": "0",
                     "when": "view == extension.vsKubernetesExplorer && viewItem =~ /vsKubernetes\\.resource(?!\\.namespace).*/i"
@@ -467,7 +545,7 @@
                 {
                     "command": "extension.vsKubernetesDelete",
                     "group": "2@2",
-                    "when": "view == extension.vsKubernetesExplorer && viewItem =~ /vsKubernetes\\.resource(?!\\.namespace).*/i"
+                    "when": "view == extension.vsKubernetesExplorer && viewItem =~ /vsKubernetes\\.resource.*/i"
                 },
                 {
                     "command": "extension.vsKubernetesDescribe",
@@ -495,6 +573,11 @@
                     "when": "view == extension.vsKubernetesExplorer && viewItem =~ /vsKubernetes\\.resource\\.pod/i"
                 },
                 {
+                    "command": "extension.vsKubernetesDebugLocalTunnel",
+                    "group": "2@5",
+                    "when": "view == extension.vsKubernetesExplorer && viewItem =~ /vsKubernetes\\.resource\\.(pod|job|service|deployment)/i"
+                },
+                {
                     "command": "extension.vsKubernetesPortForward",
                     "group": "2@6",
                     "when": "view == extension.vsKubernetesExplorer && viewItem =~ /vsKubernetes\\.resource\\.pod/i"
@@ -515,12 +598,7 @@
                     "when": "view == extension.vsKubernetesExplorer && viewItem =~ /vsKubernetes\\.resource\\.(deployment|job|rc|rs|statefulset)/i"
                 },
                 {
-                    "command": "extension.vsKubernetesShowLogs",
-                    "group": "3",
-                    "when": "view == extension.vsKubernetesExplorer && viewItem =~ /vsKubernetes\\.resource\\.(pod|job)/i"
-                },
-                {
-                    "command": "extension.vsKubernetesFollowLogs",
+                    "command": "extension.vsKubernetesLogs",
                     "group": "3",
                     "when": "view == extension.vsKubernetesExplorer && viewItem =~ /vsKubernetes\\.resource\\.(pod|job)/i"
                 },
@@ -545,6 +623,11 @@
                     "when": "view == extension.vsKubernetesExplorer && viewItem =~ /vsKubernetes\\.file/i"
                 },
                 {
+                    "command": "extension.vsKubernetesCopy",
+                    "when": "view == extension.vsKubernetesExplorer && viewItem =~ /vsKubernetes\\.helmrelease/i",
+                    "group": "1"
+                },
+                {
                     "command": "extension.helmFetch",
                     "group": "1",
                     "when": "view == extension.vsKubernetesHelmRepoExplorer && viewItem =~ /vsKubernetes\\.((chart)|(chartversion))/i"
@@ -565,9 +648,19 @@
                     "when": "view == extension.vsKubernetesHelmRepoExplorer && viewItem =~ /vsKubernetes\\.((chart)|(chartversion))/i"
                 },
                 {
-                    "command": "extension.helmInspectValues",
-                    "group": "0@2",
+                    "command": "extension.helmFetchValues",
+                    "group": "0@3",
                     "when": "view == extension.vsKubernetesHelmRepoExplorer && viewItem =~ /vsKubernetes\\.((chart)|(chartversion))/i"
+                },
+                {
+                    "command": "extension.helmRollback",
+                    "group": "3@1",
+                    "when": "view == extension.vsKubernetesExplorer && viewItem =~ /vsKubernetes\\.helmhistory/i"
+                },
+                {
+                    "command": "extension.helmUninstall",
+                    "group": "3@2",
+                    "when": "view == extension.vsKubernetesExplorer && viewItem =~ /vsKubernetes\\.helmrelease/i"
                 },
                 {
                     "command": "kubernetes.cloudExplorer.mergeIntoKubeconfig",
@@ -647,14 +740,6 @@
                     "when": "view == extension.vsKubernetesExplorer"
                 },
                 {
-                    "command": "extension.helmInspectValues",
-                    "when": "filesExplorerFocus"
-                },
-                {
-                    "command": "extension.helmInspectValues",
-                    "when": "view === extension.vsKubernetesHelmRepoExplorer"
-                },
-                {
                     "command": "extension.helmInspectChart",
                     "when": "view === extension.vsKubernetesHelmRepoExplorer"
                 },
@@ -694,6 +779,11 @@
                 "category": "Kubernetes"
             },
             {
+                "command": "extension.vsKubernetesAddWatch",
+                "title": "Watch",
+                "category": "Kubernetes"
+            },
+            {
                 "command": "extension.vsKubernetesDelete",
                 "title": "Delete",
                 "category": "Kubernetes"
@@ -706,6 +796,11 @@
             {
                 "command": "extension.vsKubernetesDeleteUri",
                 "title": "Delete Kubernetes resource",
+                "category": "Kubernetes"
+            },
+            {
+                "command": "extension.vsKubernetesDeleteWatch",
+                "title": "Stop Watching",
                 "category": "Kubernetes"
             },
             {
@@ -739,13 +834,8 @@
                 "category": "Kubernetes"
             },
             {
-                "command": "extension.vsKubernetesShowLogs",
-                "title": "Show Logs",
-                "category": "Kubernetes"
-            },
-            {
-                "command": "extension.vsKubernetesFollowLogs",
-                "title": "Follow Logs",
+                "command": "extension.vsKubernetesLogs",
+                "title": "Logs",
                 "category": "Kubernetes"
             },
             {
@@ -791,6 +881,16 @@
             {
                 "command": "extension.vsKubernetesDebugAttach",
                 "title": "Debug (Attach)",
+                "category": "Kubernetes"
+            },
+            {
+                "command": "extension.vsKubernetesDebugLocalTunnel",
+                "title": "Debug (Local Tunnel)",
+                "category": "Kubernetes"
+            },
+            {
+                "command": "extension.vsKubernetesFindLocalTunnelDebugProviders",
+                "title": "Find Local Tunnel Debug Providers on Marketplace",
                 "category": "Kubernetes"
             },
             {
@@ -879,24 +979,6 @@
                 "category": "Kubernetes"
             },
             {
-                "command": "extension.draftVersion",
-                "title": "Version",
-                "description": "Get the version of the local Draft client.",
-                "category": "Draft"
-            },
-            {
-                "command": "extension.draftUp",
-                "title": "Up",
-                "description": "Build, deploy, and run the app in-cluster.",
-                "category": "Draft"
-            },
-            {
-                "command": "extension.draftCreate",
-                "title": "Create",
-                "description": "Create a new Draft project",
-                "category": "Draft"
-            },
-            {
                 "command": "extension.vsKubernetesRefreshExplorer",
                 "title": "Refresh",
                 "category": "Kubernetes",
@@ -967,9 +1049,9 @@
                 "category": "Helm"
             },
             {
-                "command": "extension.helmInspectValues",
-                "title": "Inspect Values",
-                "description": "Inspect a Helm Chart",
+                "command": "extension.helmFetchValues",
+                "title": "Fetch values",
+                "description": "Fetches values.yaml from the chart",
                 "category": "Helm"
             },
             {
@@ -1018,6 +1100,18 @@
                 "command": "extension.helmInstall",
                 "title": "Install",
                 "description": "Install a Helm chart into the cluster",
+                "category": "Helm"
+            },
+            {
+                "command": "extension.helmUninstall",
+                "title": "Uninstall",
+                "description": "Uninstall a Helm release",
+                "category": "Helm"
+            },
+            {
+                "command": "extension.helmRollback",
+                "title": "Rollback",
+                "description": "Rollback Helm Release",
                 "category": "Helm"
             },
             {
@@ -1112,122 +1206,26 @@
                 "path": "./snippets/helm.json"
             }
         ],
-        "debuggers": [
-            {
-                "type": "draft",
-                "label": "Draft Debug",
-                "program": "./out/src/draft/debugAdapter.js",
-                "runtime": "node",
-                "configurationAttributes": {
-                    "launch": {
-                        "required": [
-                            "type",
-                            "name",
-                            "original-debug"
-                        ],
-                        "properties": {
-                            "type": {
-                                "type": "string",
-                                "description": "The type of launch configuration",
-                                "default": "draft"
-                            },
-                            "name": {
-                                "type": "string",
-                                "description": "The name of the debug configuration",
-                                "default": "Draft debug"
-                            },
-                            "original-debug": {
-                                "type": "object",
-                                "description": "Actual debug configuration VS Code will launch after app is deployed.",
-                                "default": {
-                                    "type": "node",
-                                    "request": "attach",
-                                    "name": "Attach to remote",
-                                    "address": "localhost",
-                                    "port": 9229,
-                                    "remoteRoot": "/usr/src/app/"
-                                }
-                            }
-                        }
-                    }
-                },
-                "initialConfigurations": [
-                    {
-                        "type": "draft",
-                        "request": "launch",
-                        "name": "Draft Debug",
-                        "original-debug": {}
-                    }
-                ],
-                "configurationSnippets": [
-                    {
-                        "label": "Draft Debug: NodeJS",
-                        "description": "Configuration for debugging NodeJS apps on Kubernetes using Draft",
-                        "body": {
-                            "type": "draft",
-                            "request": "launch",
-                            "name": "Draft Debug",
-                            "original-debug": {
-                                "type": "node",
-                                "request": "attach",
-                                "name": "Attach to remote",
-                                "address": "localhost",
-                                "port": 9229,
-                                "remoteRoot": "/usr/src/app/"
-                            }
-                        }
-                    },
-                    {
-                        "label": "Draft Debug: Golang",
-                        "description": "Configuration for debugging Golang apps on Kubernetes, using Draft",
-                        "body": {
-                            "type": "draft",
-                            "request": "launch",
-                            "name": "Draft Debug",
-                            "original-debug": {
-                                "name": "Kubernetes remote debugging",
-                                "type": "go",
-                                "request": "launch",
-                                "mode": "remote",
-                                "remotePath": "/go/src/app",
-                                "port": 2345,
-                                "host": "127.0.0.1",
-                                "program": "${workspaceRoot}",
-                                "env": {},
-                                "args": []
-                            }
-                        }
-                    }
-                ],
-                "extensions": []
-            }
-        ]
+        "debuggers": []
     },
     "scripts": {
-        "vscode:prepublish": "npm run compile",
-        "compile": "tsc -p ./",
-        "watch": "tsc -watch -p ./",
-        "postinstall": "node ./node_modules/vscode/bin/install",
-        "test": "npm run compile && node ./node_modules/vscode/bin/test"
+        "vscode:prepublish": "npm run vscode:prepublish:ext && npm run vscode:prepublish:view",
+        "vscode:prepublish:ext": "webpack --mode production",
+        "vscode:prepublish:view": "webpack --mode production --config src/components/logs/webpack.config.js",
+        "lint": "eslint -c .eslintrc.js --ext .ts ./src",
+        "compile": "npm run compile:ext && npm run compile:view",
+        "compile:ext": "webpack --mode none",
+        "compile:view": "webpack --mode none --config src/components/logs/webpack.config.js",
+        "watch": "webpack --mode development --watch --info-verbosity verbose",
+        "test-compile": "tsc -p ./",
+        "test": "npm run test-compile && node ./out/test/runTest.js"
     },
     "extensionDependencies": [
         "redhat.vscode-yaml"
     ],
     "dependencies": {
-        "@kubernetes/client-node": "0.7.1",
-        "@types/clipboardy": "^1.1.0",
-        "@types/js-yaml": "^3.12.0",
-        "@types/lodash": "^4.14.113",
-        "@types/mkdirp": "^0.5.2",
-        "@types/opn": "^5.1.0",
-        "@types/pluralize": "^0.0.29",
-        "@types/semver": "^5.5.0",
-        "@types/shelljs": "^0.7.8",
-        "@types/tar": "^4.0.0",
-        "@types/tmp": "^0.0.33",
-        "@types/uuid": "^3.4.4",
-        "@types/websocket": "^0.0.40",
-        "@types/yamljs": "^0.2.30",
+        "@kubernetes/client-node": "^0.10.2",
+        "ajv": "^6.9.1",
         "await-notify": "^1.0.1",
         "clipboardy": "^1.2.3",
         "compare-versions": "^3.1.0",
@@ -1235,22 +1233,23 @@
         "docker-file-parser": "^1.0.3",
         "dockerfile-parse": "^0.2.0",
         "download": "^7.1.0",
-        "fast-sha256": "^1.1.0",
         "fuzzysearch": "^1.0.3",
         "got": "9.6.0",
         "graceful-fs": "^4.1.11",
         "js-yaml": "^3.13.1",
-        "lodash": "^4.17.10",
-        "mixin-deep": "^1.3.1",
+        "lodash": "^4.17.20",
+        "mixin-deep": "^1.3.2",
         "mkdirp": "^0.5.1",
-        "moment": "^2.24.0",
+        "moment": "^2.29.1",
         "natives": "^1.1.3",
         "node-yaml-parser": "^0.0.9",
         "opn": "^5.2.0",
         "pluralize": "^4.0.0",
         "portfinder": "^1.0.13",
+        "rxjs": "^6.5.4",
         "semver": "^5.5.1",
         "shelljs": "^0.7.7",
+        "spawn-rx": "^3.0.0",
         "sshpk": "^1.13.2",
         "tar": "^4.4.1",
         "tmp": "^0.0.31",
@@ -1262,19 +1261,43 @@
         "vscode-extension-telemetry": "^0.1.1",
         "vscode-uri": "^1.0.1",
         "yaml-ast-parser": "^0.0.40",
-        "yamljs": "0.2.10"
+        "yamljs": "^0.3.0"
     },
     "devDependencies": {
-        "@types/mocha": "^2.2.32",
+        "@bendera/vscode-webview-elements": "^0.2.0",
+        "@types/clipboardy": "^1.1.0",
+        "@types/js-yaml": "^3.12.0",
+        "@types/lodash": "^4.14.113",
+        "@types/mkdirp": "^0.5.2",
+        "@types/mocha": "^8.0.4",
         "@types/node": "^10.2.0",
+        "@types/opn": "^5.1.0",
+        "@types/pluralize": "^0.0.29",
         "@types/request": "^2.48.1",
+        "@types/semver": "^5.5.0",
+        "@types/shelljs": "^0.7.8",
+        "@types/tar": "^4.0.0",
+        "@types/tmp": "^0.0.33",
         "@types/unzipper": "^0.10.0",
+        "@types/uuid": "^3.4.4",
+        "@types/websocket": "^0.0.40",
+        "@types/yamljs": "^0.2.30",
+        "@typescript-eslint/eslint-plugin": "^2.19.2",
+        "@typescript-eslint/eslint-plugin-tslint": "2.19.2",
+        "@typescript-eslint/parser": "^2.19.2",
+        "@types/vscode": "^1.52.0",
+        "eslint": "^6.8.0",
+        "file-loader": "^4.0.0",
         "gulp": "^4.0.2",
         "gulp-tslint": "^8.1.2",
-        "mocha": "^4.1.0",
-        "tslint": "^5.9.1",
+        "html-webpack-plugin": "^4.2.0",
+        "mocha": "^8.1.3",
+        "ts-loader": "^6.0.4",
+        "tslint": "^5.18.0",
         "typescript": "^3.5.2",
-        "vscode": "^1.1.21"
+        "vscode-test": "^1.4.1",
+        "webpack": "^4.35.2",
+        "webpack-cli": "^3.3.5"
     },
     "repository": {
         "type": "git",

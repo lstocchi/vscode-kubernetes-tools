@@ -4,26 +4,23 @@ export abstract class WebPanel {
     private disposables: vscode.Disposable[] = [];
     protected content: string;
     protected resource: string;
-    private hasLivePanel = true;
+    protected webView: vscode.Webview;
 
-    protected static createOrShowInternal<T extends WebPanel>(content: string, resource: string, viewType: string, title: string, currentPanels: Map<string, T>, fn: (p: vscode.WebviewPanel, content: string, resource: string) => T): T {
+    protected static createOrShowInternal<T extends WebPanel>(content: string, resource: string, viewType: string, title: string, currentPanels: Map<string, T>, localResourceRoots: vscode.Uri[], fn: (p: vscode.WebviewPanel, content: string, resource: string) => T): T {
         const column = vscode.window.activeTextEditor ? vscode.window.activeTextEditor.viewColumn : undefined;
 
         // If we already have a panel, show it.
         const currentPanel = currentPanels.get(resource);
         if (currentPanel) {
-            currentPanel.setInfo(content, resource);
-            currentPanel.update();
+            currentPanel.setContent(content);
             currentPanel.panel.reveal(column);
             return currentPanel;
         }
         const panel = vscode.window.createWebviewPanel(viewType, title, column || vscode.ViewColumn.One, {
             enableScripts: true,
             retainContextWhenHidden: true,
-
             // And restrict the webview to only loading content from our extension's `media` directory.
-            localResourceRoots: [
-            ]
+            localResourceRoots
         });
         const result = fn(panel, content, resource);
         currentPanels.set(resource, result);
@@ -38,6 +35,7 @@ export abstract class WebPanel {
     ) {
         this.content = content;
         this.resource = resource;
+        this.webView = panel.webview;
 
         this.update();
         this.panel.onDidDispose(() => this.dispose(currentPanels), null, this.disposables);
@@ -49,16 +47,13 @@ export abstract class WebPanel {
         }, null, this.disposables);
     }
 
-    public setInfo(content: string, resource: string) {
+    public setContent(content: string) {
         this.content = content;
-        this.resource = resource;
         this.update();
     }
 
     protected dispose<T extends WebPanel>(currentPanels: Map<string, T>) {
         currentPanels.delete(this.resource);
-
-        this.hasLivePanel = false;
 
         this.panel.dispose();
 
@@ -70,9 +65,6 @@ export abstract class WebPanel {
         }
     }
 
-    public get canProcessMessages(): boolean {
-        return this.hasLivePanel;
-    }
-
     protected abstract update(): void;
+
 }

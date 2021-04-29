@@ -3,9 +3,11 @@
 import * as vscode from 'vscode';
 import * as shelljs from 'shelljs';
 import * as path from 'path';
-import { getActiveKubeconfig, getToolPath, getUseWsl } from './components/config/config';
+import { getToolPath, getUseWsl } from './components/config/config';
 import { host } from './host';
 import { ChildProcess } from 'child_process';
+import { getKubeconfigPath } from './components/kubectl/kubeconfig';
+import { ExecResult } from './binutilplusplus';
 
 export enum Platform {
     Windows,
@@ -178,7 +180,7 @@ function unquotedPath(path: string): string {
 export function shellEnvironment(baseEnvironment: any): any {
     const env = Object.assign({}, baseEnvironment);
     const pathVariable = pathVariableName(env);
-    for (const tool of ['kubectl', 'helm', 'draft', 'minikube']) {
+    for (const tool of ['kubectl', 'helm', 'minikube']) {
         const toolPath = getToolPath(host, shell, tool);
         if (toolPath) {
             const toolDirectory = path.dirname(toolPath);
@@ -187,11 +189,8 @@ export function shellEnvironment(baseEnvironment: any): any {
         }
     }
 
-    const kubeconfig = getActiveKubeconfig();
-    if (kubeconfig) {
-        env['KUBECONFIG'] = kubeconfig;
-    }
-
+    const kubeconfigPath = getKubeconfigPath();
+    env['KUBECONFIG'] = kubeconfigPath.pathType === "host" ? kubeconfigPath.hostPath : kubeconfigPath.wslPath;
     return env;
 }
 
@@ -245,9 +244,15 @@ function ls(path: string): string[] {
     return shelljs.ls(path);
 }
 
-export function shellMessage(sr: ShellResult | undefined, invocationFailureMessage: string): string {
-    if (!sr) {
+export function shellMessage(er: ExecResult, invocationFailureMessage: string): string {
+    if (er.resultKind === 'exec-bin-not-found' || er.resultKind === 'exec-failed') {
         return invocationFailureMessage;
     }
-    return sr.code === 0 ? sr.stdout : sr.stderr;
+    return er.resultKind === 'exec-succeeded' ? er.stdout : er.stderr;
+}
+
+const SAFE_CHARS_REGEX = /^[-,._+:@%/\w]*$/;
+
+export function isSafe(s: string): boolean {
+    return SAFE_CHARS_REGEX.test(s);
 }

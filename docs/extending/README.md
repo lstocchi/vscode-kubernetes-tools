@@ -70,7 +70,11 @@ snippet. In terms of the TypeScript typings from the NPM package, `activate` ret
   * Versions: `v1`
 * [Cluster Explorer API](clusterexplorer.md) - used for working with the Clusters tree
   * ID: `clusterexplorer`
-  * Versions: `v1`
+  * Versions: `v1`, `v1.1`
 * [Cloud Explorer API](cloudexplorer.md) - used for working with the Clouds tree
   * ID: `cloudexplorer`
   * Versions: `v1`
+* [Configuration API](configuration.md) - used for working with Kubernetes configuration
+  * ID: `configuration`
+  * Versions: `v1`
+* [Local Tunnel Debugger API](localtunneldebugger.md) - used for setting up and managing local tunnel debugging

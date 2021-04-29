@@ -14,29 +14,29 @@ interface KubernetesSchema {
     readonly apiVersion?: string;
     readonly kind?: string;
     readonly 'x-kubernetes-group-version-kind'?: any[];
-    readonly properties?: { [key: string]: any; };
+    readonly properties?: { [key: string]: any };
 }
 
 export class KubernetesClusterSchemaHolder {
-    private definitions: { [key: string]: KubernetesSchema; } = {};
-    private schemaEnums: { [key: string]: { [key: string]: [string[]] }; };
+    private definitions: { [key: string]: KubernetesSchema } = {};
+    private schemaEnums: { [key: string]: { [key: string]: [string[]] } };
 
     public static async fromActiveCluster(kubectl: Kubectl): Promise<KubernetesClusterSchemaHolder> {
         const holder = new KubernetesClusterSchemaHolder();
-        await holder.loadSchemaFromActiveCluster(kubectl, KUBERNETES_SCHEMA_ENUM_FILE);
+        await holder.loadSchemaFromActiveCluster(kubectl, KUBERNETES_SCHEMA_ENUM_FILE());
         return holder;
     }
 
     public static fallback(): KubernetesClusterSchemaHolder {
         const holder = new KubernetesClusterSchemaHolder();
-        const fallbackSchema = util.loadJson(FALLBACK_SCHEMA_FILE);
-        holder.loadSchemaFromRaw(fallbackSchema, KUBERNETES_SCHEMA_ENUM_FILE);
+        const fallbackSchema = util.loadJson(FALLBACK_SCHEMA_FILE());
+        holder.loadSchemaFromRaw(fallbackSchema, KUBERNETES_SCHEMA_ENUM_FILE());
         return holder;
     }
 
     private async loadSchemaFromActiveCluster(kubectl: Kubectl, schemaEnumFile?: string): Promise<void> {
         const clusterSwagger = await swagger.getClusterSwagger(kubectl);
-        const schemaRaw = succeeded(clusterSwagger) ? this.definitionsObject(clusterSwagger.result) : util.loadJson(FALLBACK_SCHEMA_FILE);
+        const schemaRaw = succeeded(clusterSwagger) ? this.definitionsObject(clusterSwagger.result) : util.loadJson(FALLBACK_SCHEMA_FILE());
         this.loadSchemaFromRaw(schemaRaw, schemaEnumFile);
     }
 
@@ -102,8 +102,8 @@ export class KubernetesClusterSchemaHolder {
             // if the schema contains 'x-kubernetes-group-version-kind'. then it is a direct kubernetes manifest,
             getManifestStyleSchemas(originalSchema).forEach((schema: KubernetesSchema) =>  {
                 this.saveSchema({
-                    name,
-                    ...schema
+                    ...schema,
+                    name
                 });
             });
 

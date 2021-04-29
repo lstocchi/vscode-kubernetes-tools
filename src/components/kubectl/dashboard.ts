@@ -18,6 +18,12 @@ const PROXY_OUTPUT_FILE = resolve(__dirname, 'proxy.out');
 // The instance of the terminal running Kubectl Dashboard
 let terminal: vscode.Terminal | null = null;
 
+interface DashboardPodInfo {
+    readonly name: string;
+    readonly port: number;
+    readonly scheme: string;
+}
+
 /**
  * Determines if the selected cluster is AKS or not by examining
  * all the attached nodes for two heuristics:
@@ -33,7 +39,7 @@ async function isAKSCluster (kubectl: Kubectl): Promise<boolean> {
 
     const nodeItems = nodes.result.items;
     for (const nodeItem of nodeItems) {
-        const isAKSNode = _isNodeAKS(nodeItem);
+        const isAKSNode = isNodeAKS(nodeItem);
 
         if (!isAKSNode) {
             return false;
@@ -43,7 +49,7 @@ async function isAKSCluster (kubectl: Kubectl): Promise<boolean> {
    return true;
 }
 
-function _isNodeAKS(node: Node): boolean {
+function isNodeAKS(node: Node): boolean {
     const name: string = node.metadata.name;
     const roleLabel: string = node.metadata.labels ? node.metadata.labels["kubernetes.io/role"] : '';
 
@@ -60,14 +66,15 @@ function _isNodeAKS(node: Node): boolean {
  *
  * @returns The name of the dashboard pod.
  */
-async function findDashboardPod (kubectl: Kubectl): Promise<string | undefined> {
+async function findDashboardPod(kubectl: Kubectl): Promise<DashboardPodInfo | undefined> {
     const dashboardPod = await kubectl.asJson<KubernetesCollection<Pod>>(
         "get pod -n kube-system -l k8s-app=kubernetes-dashboard -o json"
     );
     if (failed(dashboardPod)) {
         return undefined;
     }
-    return dashboardPod.result.items[0].metadata.name;
+    const livenessProbeHttpGet = dashboardPod.result.items[0].spec.containers[0].livenessProbe!.httpGet;
+    return { name: dashboardPod.result.items[0].metadata.name, port: livenessProbeHttpGet.port, scheme: livenessProbeHttpGet.scheme };
 }
 
 /**
@@ -81,11 +88,11 @@ async function openDashboardForAKSCluster (kubectl: Kubectl): Promise<void> {
     }
 
     // Local port 9090 could be bound to something else.
-    const portMapping = buildPortMapping("9090");
-    const boundPort = await portForwardToPod(kubectl, dashboardPod, portMapping, 'kube-system');
+    const portMapping = buildPortMapping(String(dashboardPod.port));
+    const boundPort = await portForwardToPod(kubectl, dashboardPod.name, portMapping, 'kube-system');
 
     setTimeout(() => {
-        browser.open(`http://localhost:${boundPort[0]}`);
+        browser.open(`${dashboardPod.scheme}://localhost:${boundPort[0]}`);
     }, 2500);
     return;
 }
